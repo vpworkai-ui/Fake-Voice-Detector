@@ -9,6 +9,7 @@
 - Ghi âm microphone PCM 16kHz + trích xuất đặc trưng.
 - Fusion decision với ASV score: `ALLOW / REVIEW / BLOCK`.
 - Hỗ trợ gọi ASV backend qua HTTP (có fallback sang manual score khi backend lỗi).
+- Release hardening: bản release bắt buộc model anti-spoof thật + ASV backend thật (không heuristic/manual fallback).
 - Calibration ngưỡng ngay trên app:
   - `spoof threshold`
   - `ASV threshold`

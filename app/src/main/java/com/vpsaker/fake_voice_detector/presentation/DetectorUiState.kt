@@ -5,6 +5,7 @@ import com.vpsaker.fake_voice_detector.domain.model.DetectionSession
 import com.vpsaker.fake_voice_detector.domain.model.FusionDecisionResult
 
 data class DetectorUiState(
+    val strictReleaseMode: Boolean = false,
     val isRecording: Boolean = false,
     val isAnalyzing: Boolean = false,
     val recordingSeconds: Int = 0,

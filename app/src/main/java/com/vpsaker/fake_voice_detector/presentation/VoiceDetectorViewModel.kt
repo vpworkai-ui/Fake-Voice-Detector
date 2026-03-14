@@ -31,16 +31,22 @@ class VoiceDetectorViewModel(
     private val telemetryRepository: TelemetryRepository,
     private val analyzeVoiceSpoofingUseCase: AnalyzeVoiceSpoofingUseCase,
     private val fuseAuthenticationUseCase: FuseAuthenticationUseCase,
+    private val strictReleaseMode: Boolean,
     private val dispatchersProvider: DispatchersProvider = DefaultDispatchersProvider
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DetectorUiState())
+    private val _uiState = MutableStateFlow(DetectorUiState(strictReleaseMode = strictReleaseMode))
     val uiState: StateFlow<DetectorUiState> = _uiState.asStateFlow()
 
     private var recordTickerJob: Job? = null
     private var recordStartedAtMs: Long = 0L
 
     init {
+        if (strictReleaseMode) {
+            viewModelScope.launch(dispatchersProvider.io) {
+                securityConfigRepository.updateUseRemoteAsv(true)
+            }
+        }
         observeConfig()
     }
 
@@ -85,6 +91,15 @@ class VoiceDetectorViewModel(
                         val current = _uiState.value
                         val patchedDetection = detection.copy(threshold = current.spoofThreshold)
                         val asvResolution = resolveAsvScore(current, patchedDetection.spoofProbability, patchedDetection.recordingDurationSec)
+                            .getOrElse { throwable ->
+                                _uiState.update {
+                                    it.copy(
+                                        isAnalyzing = false,
+                                        errorMessage = throwable.message ?: "ASV resolution failed"
+                                    )
+                                }
+                                return@onSuccess
+                            }
                         val fusion = fuseAuthenticationUseCase(
                             spoofProbability = patchedDetection.spoofProbability,
                             asvScore = asvResolution.score,
@@ -148,9 +163,10 @@ class VoiceDetectorViewModel(
     }
 
     fun updateUseRemoteAsv(value: Boolean) {
-        _uiState.update { it.copy(useRemoteAsv = value) }
+        val safeValue = if (strictReleaseMode) true else value
+        _uiState.update { it.copy(useRemoteAsv = safeValue) }
         viewModelScope.launch(dispatchersProvider.io) {
-            securityConfigRepository.updateUseRemoteAsv(value)
+            securityConfigRepository.updateUseRemoteAsv(safeValue)
         }
     }
 
@@ -173,7 +189,7 @@ class VoiceDetectorViewModel(
                         it.copy(
                             spoofThreshold = config.spoofThreshold,
                             asvThreshold = config.asvThreshold,
-                            useRemoteAsv = config.useRemoteAsv,
+                            useRemoteAsv = if (strictReleaseMode) true else config.useRemoteAsv,
                             asvEndpoint = config.asvEndpoint
                         )
                     }
@@ -186,10 +202,15 @@ class VoiceDetectorViewModel(
         state: DetectorUiState,
         spoofProbability: Float,
         recordingDurationSec: Float
-    ): AsvResolution {
+    ): Result<AsvResolution> {
         val manualScore = state.asvScoreInput.toFloatOrNull()?.coerceIn(0f, 1f) ?: DEFAULT_ASV_SCORE
         if (!state.useRemoteAsv || state.asvEndpoint.isBlank()) {
-            return AsvResolution(score = manualScore, source = "manual", latencyMs = 0L, warning = null)
+            if (strictReleaseMode) {
+                return Result.failure(
+                    IllegalStateException("Release mode requires remote ASV enabled and endpoint configured")
+                )
+            }
+            return Result.success(AsvResolution(score = manualScore, source = "manual", latencyMs = 0L, warning = null))
         }
 
         val remote = asvScoreRepository.fetchAsvScore(
@@ -203,15 +224,23 @@ class VoiceDetectorViewModel(
 
         return remote.fold(
             onSuccess = { result ->
-                AsvResolution(score = result.score, source = result.source, latencyMs = result.latencyMs, warning = null)
+                Result.success(
+                    AsvResolution(score = result.score, source = result.source, latencyMs = result.latencyMs, warning = null)
+                )
             },
             onFailure = { throwable ->
-                AsvResolution(
-                    score = manualScore,
-                    source = "manual-fallback",
-                    latencyMs = 0L,
-                    warning = "Remote ASV failed, fallback manual score: ${throwable.message}"
-                )
+                if (strictReleaseMode) {
+                    Result.failure(IllegalStateException("Remote ASV failed in release mode: ${throwable.message}", throwable))
+                } else {
+                    Result.success(
+                        AsvResolution(
+                            score = manualScore,
+                            source = "manual-fallback",
+                            latencyMs = 0L,
+                            warning = "Remote ASV failed, fallback manual score: ${throwable.message}"
+                        )
+                    )
+                }
             }
         )
     }
@@ -285,6 +314,7 @@ class VoiceDetectorViewModelFactory(
     private val securityConfigRepository: SecurityConfigRepository,
     private val asvScoreRepository: AsvScoreRepository,
     private val telemetryRepository: TelemetryRepository,
+    private val strictReleaseMode: Boolean,
     private val dispatchersProvider: DispatchersProvider = DefaultDispatchersProvider
 ) : ViewModelProvider.Factory {
 
@@ -298,6 +328,7 @@ class VoiceDetectorViewModelFactory(
                 telemetryRepository = telemetryRepository,
                 analyzeVoiceSpoofingUseCase = AnalyzeVoiceSpoofingUseCase(repository),
                 fuseAuthenticationUseCase = FuseAuthenticationUseCase(),
+                strictReleaseMode = strictReleaseMode,
                 dispatchersProvider = dispatchersProvider
             ) as T
         }

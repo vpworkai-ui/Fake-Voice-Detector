@@ -86,6 +86,7 @@ fun VoiceDetectorScreen(
         )
 
         FusionControlCard(
+            strictReleaseMode = uiState.strictReleaseMode,
             asvScoreInput = uiState.asvScoreInput,
             spoofThreshold = uiState.spoofThreshold,
             asvThreshold = uiState.asvThreshold,
@@ -199,6 +200,7 @@ private fun RecordingCard(
 
 @Composable
 private fun FusionControlCard(
+    strictReleaseMode: Boolean,
     asvScoreInput: String,
     spoofThreshold: Float,
     asvThreshold: Float,
@@ -218,20 +220,28 @@ private fun FusionControlCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Fusion Controls", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(
-                value = asvScoreInput,
-                onValueChange = onAsvScoreInputChange,
-                label = { Text("ASV score (0.0 - 1.0)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            if (!strictReleaseMode) {
+                OutlinedTextField(
+                    value = asvScoreInput,
+                    onValueChange = onAsvScoreInputChange,
+                    label = { Text("ASV score (0.0 - 1.0)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            } else {
+                Text("Release mode: manual ASV score is disabled.")
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Use remote ASV backend")
-                Switch(checked = useRemoteAsv, onCheckedChange = onUseRemoteAsvChange)
+                Switch(
+                    checked = if (strictReleaseMode) true else useRemoteAsv,
+                    onCheckedChange = onUseRemoteAsvChange,
+                    enabled = !strictReleaseMode
+                )
             }
             OutlinedTextField(
                 value = asvEndpoint,

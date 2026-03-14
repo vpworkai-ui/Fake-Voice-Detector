@@ -8,11 +8,12 @@ import kotlin.math.exp
 
 class TFLiteSpoofDetectorEngine(
     private val context: Context,
-    private val modelAssetPath: String = DEFAULT_MODEL_PATH
+    private val modelAssetPath: String = DEFAULT_MODEL_PATH,
+    private val allowHeuristicFallback: Boolean = true
 ) : SpoofDetectorEngine {
 
     override val modelName: String
-        get() = if (interpreter != null) "tflite-voice-spoof-detector" else "heuristic-fallback"
+        get() = if (interpreter != null) "tflite-voice-spoof-detector" else "missing-model"
 
     private val interpreter: Interpreter? by lazy {
         runCatching {
@@ -22,7 +23,11 @@ class TFLiteSpoofDetectorEngine(
     }
 
     override fun detectSpoofProbability(features: FloatArray): Float {
-        val tflite = interpreter ?: return fallbackHeuristic(features)
+        val tflite = interpreter ?: return if (allowHeuristicFallback) {
+            fallbackHeuristic(features)
+        } else {
+            throw IllegalStateException("Release mode requires a valid spoof detection model")
+        }
 
         return runCatching {
             val inputSize = tflite.getInputTensor(0).shape().last().coerceAtLeast(1)
@@ -38,7 +43,11 @@ class TFLiteSpoofDetectorEngine(
 
             decodeOutput(output[0]).coerceIn(0f, 1f)
         }.getOrElse {
-            fallbackHeuristic(features)
+            if (allowHeuristicFallback) {
+                fallbackHeuristic(features)
+            } else {
+                throw IllegalStateException("Spoof model inference failed in release mode", it)
+            }
         }
     }
 

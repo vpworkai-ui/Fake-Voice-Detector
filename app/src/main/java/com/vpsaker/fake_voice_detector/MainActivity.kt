@@ -1,6 +1,7 @@
 package com.vpsaker.fake_voice_detector
 
 import android.Manifest
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -31,16 +32,23 @@ import com.vpsaker.fake_voice_detector.ui.theme.Fake_voice_detectorTheme
 
 class MainActivity : ComponentActivity() {
 
+    private val isDebugBuild: Boolean
+        get() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
     private val viewModel: VoiceDetectorViewModel by viewModels {
         VoiceDetectorViewModelFactory(
             repository = VoiceSpoofingRepositoryImpl(
                 recorder = MicrophoneAudioRecorder(),
                 featureExtractor = AudioFeatureExtractor(),
-                detectorEngine = TFLiteSpoofDetectorEngine(applicationContext)
+                detectorEngine = TFLiteSpoofDetectorEngine(
+                    context = applicationContext,
+                    allowHeuristicFallback = isDebugBuild
+                )
             ),
             securityConfigRepository = SecurityConfigDataStoreRepository(applicationContext),
             asvScoreRepository = HttpAsvScoreRepository(),
-            telemetryRepository = FileTelemetryRepository(applicationContext)
+            telemetryRepository = FileTelemetryRepository(applicationContext),
+            strictReleaseMode = !isDebugBuild
         )
     }
 
