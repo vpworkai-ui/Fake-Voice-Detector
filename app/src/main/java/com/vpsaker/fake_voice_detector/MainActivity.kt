@@ -21,6 +21,7 @@ import com.vpsaker.fake_voice_detector.data.audio.MicrophoneAudioRecorder
 import com.vpsaker.fake_voice_detector.data.detection.AudioFeatureExtractor
 import com.vpsaker.fake_voice_detector.data.detection.TFLiteSpoofDetectorEngine
 import com.vpsaker.fake_voice_detector.data.detection.VoiceSpoofingRepositoryImpl
+import com.vpsaker.fake_voice_detector.data.settings.SecurityConfigDataStoreRepository
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorScreen
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorViewModel
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorViewModelFactory
@@ -34,7 +35,8 @@ class MainActivity : ComponentActivity() {
                 recorder = MicrophoneAudioRecorder(),
                 featureExtractor = AudioFeatureExtractor(),
                 detectorEngine = TFLiteSpoofDetectorEngine(applicationContext)
-            )
+            ),
+            securityConfigRepository = SecurityConfigDataStoreRepository(applicationContext)
         )
     }
 
@@ -69,6 +71,9 @@ class MainActivity : ComponentActivity() {
                     },
                     onStartRecording = viewModel::startRecording,
                     onStopRecording = viewModel::stopAndAnalyze,
+                    onAsvScoreInputChange = viewModel::updateAsvScoreInput,
+                    onSpoofThresholdChange = viewModel::updateSpoofThreshold,
+                    onAsvThresholdChange = viewModel::updateAsvThreshold,
                     onDismissError = viewModel::dismissError,
                     modifier = Modifier.fillMaxSize()
                 )
