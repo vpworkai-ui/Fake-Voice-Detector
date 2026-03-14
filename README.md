@@ -8,6 +8,7 @@
 - Runtime suy luận dùng `Google LiteRT` (on-device).
 - Ghi âm microphone PCM 16kHz + trích xuất đặc trưng.
 - Fusion decision với ASV score: `ALLOW / REVIEW / BLOCK`.
+- Hỗ trợ gọi ASV backend qua HTTP (có fallback sang manual score khi backend lỗi).
 - Calibration ngưỡng ngay trên app:
   - `spoof threshold`
   - `ASV threshold`
@@ -26,6 +27,50 @@ Luồng xử lý:
 3. Trích xuất đặc trưng âm thanh.
 4. Chạy model LiteRT (nếu có) hoặc heuristic fallback.
 5. Kết hợp với ASV score để đưa ra quyết định fusion.
+
+## ASV Backend Integration
+
+Trên UI:
+- Bật `Use remote ASV backend`.
+- Nhập `ASV endpoint URL`.
+
+App sẽ gọi `POST` JSON tới endpoint:
+
+```json
+{
+  "spoofProbability": 0.21,
+  "recordingDurationSec": 2.43,
+  "sessionTimestampMs": 1710000000000
+}
+```
+
+Backend cần trả về tối thiểu:
+
+```json
+{
+  "asvScore": 0.84,
+  "source": "remote"
+}
+```
+
+Nếu backend lỗi/timeout, app tự fallback sang `manual ASV score`.
+
+## Telemetry Local Log
+
+Mỗi phiên xác thực sẽ được ghi local JSONL tại:
+
+`<app_files_dir>/telemetry/voice_auth_events.jsonl`
+
+Các trường chính gồm:
+- `timestampMs`
+- `spoofProbability`
+- `asvScore`
+- `decision`
+- `reason`
+- `asvSource`
+- `asvLatencyMs`
+- `modelName`
+- `recordingDurationSec`
 
 ## Tích hợp model anti-spoof thật
 

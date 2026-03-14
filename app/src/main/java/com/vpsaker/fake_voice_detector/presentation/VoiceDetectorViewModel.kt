@@ -5,9 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.vpsaker.fake_voice_detector.core.DefaultDispatchersProvider
 import com.vpsaker.fake_voice_detector.core.DispatchersProvider
+import com.vpsaker.fake_voice_detector.domain.model.AsvScoreRequest
+import com.vpsaker.fake_voice_detector.domain.model.AuthTelemetryEvent
 import com.vpsaker.fake_voice_detector.domain.model.DetectionSession
 import com.vpsaker.fake_voice_detector.domain.model.SecurityConfig
+import com.vpsaker.fake_voice_detector.domain.repository.AsvScoreRepository
 import com.vpsaker.fake_voice_detector.domain.repository.SecurityConfigRepository
+import com.vpsaker.fake_voice_detector.domain.repository.TelemetryRepository
 import com.vpsaker.fake_voice_detector.domain.repository.VoiceSpoofingRepository
 import com.vpsaker.fake_voice_detector.domain.usecase.AnalyzeVoiceSpoofingUseCase
 import com.vpsaker.fake_voice_detector.domain.usecase.FuseAuthenticationUseCase
@@ -23,6 +27,8 @@ import kotlinx.coroutines.withContext
 class VoiceDetectorViewModel(
     private val repository: VoiceSpoofingRepository,
     private val securityConfigRepository: SecurityConfigRepository,
+    private val asvScoreRepository: AsvScoreRepository,
+    private val telemetryRepository: TelemetryRepository,
     private val analyzeVoiceSpoofingUseCase: AnalyzeVoiceSpoofingUseCase,
     private val fuseAuthenticationUseCase: FuseAuthenticationUseCase,
     private val dispatchersProvider: DispatchersProvider = DefaultDispatchersProvider
@@ -78,13 +84,15 @@ class VoiceDetectorViewModel(
                     .onSuccess { detection ->
                         val current = _uiState.value
                         val patchedDetection = detection.copy(threshold = current.spoofThreshold)
-                        val asvScore = current.asvScoreInput.toFloatOrNull()?.coerceIn(0f, 1f) ?: DEFAULT_ASV_SCORE
+                        val asvResolution = resolveAsvScore(current, patchedDetection.spoofProbability, patchedDetection.recordingDurationSec)
                         val fusion = fuseAuthenticationUseCase(
                             spoofProbability = patchedDetection.spoofProbability,
-                            asvScore = asvScore,
+                            asvScore = asvResolution.score,
                             config = SecurityConfig(
                                 spoofThreshold = current.spoofThreshold,
-                                asvThreshold = current.asvThreshold
+                                asvThreshold = current.asvThreshold,
+                                useRemoteAsv = current.useRemoteAsv,
+                                asvEndpoint = current.asvEndpoint
                             )
                         )
                         val session = DetectionSession(
@@ -98,10 +106,14 @@ class VoiceDetectorViewModel(
                                 isAnalyzing = false,
                                 result = patchedDetection,
                                 fusionDecisionResult = fusion,
+                                lastAsvSource = asvResolution.source,
+                                lastAsvLatencyMs = asvResolution.latencyMs,
                                 sessions = (listOf(session) + it.sessions).take(MAX_SESSION_HISTORY),
-                                errorMessage = null
+                                errorMessage = asvResolution.warning
                             )
                         }
+
+                        logTelemetry(patchedDetection, fusion, asvResolution)
                     }
                     .onFailure { throwable ->
                         _uiState.update {
@@ -135,6 +147,20 @@ class VoiceDetectorViewModel(
         }
     }
 
+    fun updateUseRemoteAsv(value: Boolean) {
+        _uiState.update { it.copy(useRemoteAsv = value) }
+        viewModelScope.launch(dispatchersProvider.io) {
+            securityConfigRepository.updateUseRemoteAsv(value)
+        }
+    }
+
+    fun updateAsvEndpoint(value: String) {
+        _uiState.update { it.copy(asvEndpoint = value) }
+        viewModelScope.launch(dispatchersProvider.io) {
+            securityConfigRepository.updateAsvEndpoint(value)
+        }
+    }
+
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
@@ -146,11 +172,69 @@ class VoiceDetectorViewModel(
                     _uiState.update {
                         it.copy(
                             spoofThreshold = config.spoofThreshold,
-                            asvThreshold = config.asvThreshold
+                            asvThreshold = config.asvThreshold,
+                            useRemoteAsv = config.useRemoteAsv,
+                            asvEndpoint = config.asvEndpoint
                         )
                     }
                 }
             }
+        }
+    }
+
+    private suspend fun resolveAsvScore(
+        state: DetectorUiState,
+        spoofProbability: Float,
+        recordingDurationSec: Float
+    ): AsvResolution {
+        val manualScore = state.asvScoreInput.toFloatOrNull()?.coerceIn(0f, 1f) ?: DEFAULT_ASV_SCORE
+        if (!state.useRemoteAsv || state.asvEndpoint.isBlank()) {
+            return AsvResolution(score = manualScore, source = "manual", latencyMs = 0L, warning = null)
+        }
+
+        val remote = asvScoreRepository.fetchAsvScore(
+            AsvScoreRequest(
+                endpoint = state.asvEndpoint,
+                spoofProbability = spoofProbability,
+                recordingDurationSec = recordingDurationSec,
+                sessionTimestampMs = System.currentTimeMillis()
+            )
+        )
+
+        return remote.fold(
+            onSuccess = { result ->
+                AsvResolution(score = result.score, source = result.source, latencyMs = result.latencyMs, warning = null)
+            },
+            onFailure = { throwable ->
+                AsvResolution(
+                    score = manualScore,
+                    source = "manual-fallback",
+                    latencyMs = 0L,
+                    warning = "Remote ASV failed, fallback manual score: ${throwable.message}"
+                )
+            }
+        )
+    }
+
+    private fun logTelemetry(
+        detection: com.vpsaker.fake_voice_detector.domain.model.DetectionResult,
+        fusion: com.vpsaker.fake_voice_detector.domain.model.FusionDecisionResult,
+        asvResolution: AsvResolution
+    ) {
+        viewModelScope.launch(dispatchersProvider.io) {
+            telemetryRepository.logAuthenticationEvent(
+                AuthTelemetryEvent(
+                    timestampMs = System.currentTimeMillis(),
+                    spoofProbability = detection.spoofProbability,
+                    asvScore = fusion.asvScore,
+                    decision = fusion.decision.name,
+                    reason = fusion.reason,
+                    asvSource = asvResolution.source,
+                    asvLatencyMs = asvResolution.latencyMs,
+                    modelName = detection.modelName,
+                    recordingDurationSec = detection.recordingDurationSec
+                )
+            )
         }
     }
 
@@ -182,6 +266,13 @@ class VoiceDetectorViewModel(
         }
     }
 
+    private data class AsvResolution(
+        val score: Float,
+        val source: String,
+        val latencyMs: Long,
+        val warning: String?
+    )
+
     private companion object {
         const val DEFAULT_ASV_SCORE = 0.5f
         const val MAX_SESSION_HISTORY = 10
@@ -192,6 +283,8 @@ class VoiceDetectorViewModel(
 class VoiceDetectorViewModelFactory(
     private val repository: VoiceSpoofingRepository,
     private val securityConfigRepository: SecurityConfigRepository,
+    private val asvScoreRepository: AsvScoreRepository,
+    private val telemetryRepository: TelemetryRepository,
     private val dispatchersProvider: DispatchersProvider = DefaultDispatchersProvider
 ) : ViewModelProvider.Factory {
 
@@ -201,6 +294,8 @@ class VoiceDetectorViewModelFactory(
             return VoiceDetectorViewModel(
                 repository = repository,
                 securityConfigRepository = securityConfigRepository,
+                asvScoreRepository = asvScoreRepository,
+                telemetryRepository = telemetryRepository,
                 analyzeVoiceSpoofingUseCase = AnalyzeVoiceSpoofingUseCase(repository),
                 fuseAuthenticationUseCase = FuseAuthenticationUseCase(),
                 dispatchersProvider = dispatchersProvider

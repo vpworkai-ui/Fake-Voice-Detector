@@ -12,7 +12,11 @@ data class DetectorUiState(
     val fusionDecisionResult: FusionDecisionResult? = null,
     val spoofThreshold: Float = 0.5f,
     val asvThreshold: Float = 0.75f,
+    val useRemoteAsv: Boolean = false,
+    val asvEndpoint: String = "https://example.com/api/asv/score",
     val asvScoreInput: String = "0.80",
+    val lastAsvSource: String = "manual",
+    val lastAsvLatencyMs: Long = 0L,
     val sessions: List<DetectionSession> = emptyList(),
     val errorMessage: String? = null
 )

@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,6 +45,8 @@ fun VoiceDetectorScreen(
     onAsvScoreInputChange: (String) -> Unit,
     onSpoofThresholdChange: (Float) -> Unit,
     onAsvThresholdChange: (Float) -> Unit,
+    onUseRemoteAsvChange: (Boolean) -> Unit,
+    onAsvEndpointChange: (String) -> Unit,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -86,9 +89,15 @@ fun VoiceDetectorScreen(
             asvScoreInput = uiState.asvScoreInput,
             spoofThreshold = uiState.spoofThreshold,
             asvThreshold = uiState.asvThreshold,
+            useRemoteAsv = uiState.useRemoteAsv,
+            asvEndpoint = uiState.asvEndpoint,
+            lastAsvSource = uiState.lastAsvSource,
+            lastAsvLatencyMs = uiState.lastAsvLatencyMs,
             onAsvScoreInputChange = onAsvScoreInputChange,
             onSpoofThresholdChange = onSpoofThresholdChange,
-            onAsvThresholdChange = onAsvThresholdChange
+            onAsvThresholdChange = onAsvThresholdChange,
+            onUseRemoteAsvChange = onUseRemoteAsvChange,
+            onAsvEndpointChange = onAsvEndpointChange
         )
 
         uiState.result?.let { result ->
@@ -193,9 +202,15 @@ private fun FusionControlCard(
     asvScoreInput: String,
     spoofThreshold: Float,
     asvThreshold: Float,
+    useRemoteAsv: Boolean,
+    asvEndpoint: String,
+    lastAsvSource: String,
+    lastAsvLatencyMs: Long,
     onAsvScoreInputChange: (String) -> Unit,
     onSpoofThresholdChange: (Float) -> Unit,
-    onAsvThresholdChange: (Float) -> Unit
+    onAsvThresholdChange: (Float) -> Unit,
+    onUseRemoteAsvChange: (Boolean) -> Unit,
+    onAsvEndpointChange: (String) -> Unit
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))) {
         Column(
@@ -210,6 +225,23 @@ private fun FusionControlCard(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Use remote ASV backend")
+                Switch(checked = useRemoteAsv, onCheckedChange = onUseRemoteAsvChange)
+            }
+            OutlinedTextField(
+                value = asvEndpoint,
+                onValueChange = onAsvEndpointChange,
+                label = { Text("ASV endpoint URL") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Text("ASV source: $lastAsvSource")
+            Text("ASV latency: ${lastAsvLatencyMs}ms")
 
             Text("Spoof threshold: ${"%.2f".format(spoofThreshold)}")
             Slider(

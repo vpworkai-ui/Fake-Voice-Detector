@@ -18,10 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vpsaker.fake_voice_detector.data.audio.MicrophoneAudioRecorder
+import com.vpsaker.fake_voice_detector.data.asv.HttpAsvScoreRepository
 import com.vpsaker.fake_voice_detector.data.detection.AudioFeatureExtractor
 import com.vpsaker.fake_voice_detector.data.detection.TFLiteSpoofDetectorEngine
 import com.vpsaker.fake_voice_detector.data.detection.VoiceSpoofingRepositoryImpl
 import com.vpsaker.fake_voice_detector.data.settings.SecurityConfigDataStoreRepository
+import com.vpsaker.fake_voice_detector.data.telemetry.FileTelemetryRepository
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorScreen
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorViewModel
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorViewModelFactory
@@ -36,7 +38,9 @@ class MainActivity : ComponentActivity() {
                 featureExtractor = AudioFeatureExtractor(),
                 detectorEngine = TFLiteSpoofDetectorEngine(applicationContext)
             ),
-            securityConfigRepository = SecurityConfigDataStoreRepository(applicationContext)
+            securityConfigRepository = SecurityConfigDataStoreRepository(applicationContext),
+            asvScoreRepository = HttpAsvScoreRepository(),
+            telemetryRepository = FileTelemetryRepository(applicationContext)
         )
     }
 
@@ -74,6 +78,8 @@ class MainActivity : ComponentActivity() {
                     onAsvScoreInputChange = viewModel::updateAsvScoreInput,
                     onSpoofThresholdChange = viewModel::updateSpoofThreshold,
                     onAsvThresholdChange = viewModel::updateAsvThreshold,
+                    onUseRemoteAsvChange = viewModel::updateUseRemoteAsv,
+                    onAsvEndpointChange = viewModel::updateAsvEndpoint,
                     onDismissError = viewModel::dismissError,
                     modifier = Modifier.fillMaxSize()
                 )
