@@ -37,6 +37,38 @@ class VoiceSpoofingRepositoryImplTest {
         assertTrue(result.exceptionOrNull()?.message?.contains("volume is too low") == true)
     }
 
+    @Test
+    fun `stopRecordingAndAnalyze fails when no speech activity detected`() = runBlocking {
+        val recorder = FakeRecorder(ShortArray(16_000) { 500 })
+        val repository = VoiceSpoofingRepositoryImpl(
+            recorder = recorder,
+            featureExtractor = AudioFeatureExtractor(),
+            detectorEngine = FakeDetector()
+        )
+
+        val result = repository.stopRecordingAndAnalyze()
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("No speech detected") == true)
+    }
+
+    @Test
+    fun `stopRecordingAndAnalyze passes when speech activity exists`() = runBlocking {
+        val samples = ShortArray(16_000) { index ->
+            if (index in 2_000..11_000 && index % 80 < 40) 6_000 else 100
+        }
+        val recorder = FakeRecorder(samples)
+        val repository = VoiceSpoofingRepositoryImpl(
+            recorder = recorder,
+            featureExtractor = AudioFeatureExtractor(),
+            detectorEngine = FakeDetector()
+        )
+
+        val result = repository.stopRecordingAndAnalyze()
+
+        assertTrue(result.isSuccess)
+    }
+
     private class FakeDetector : SpoofDetectorEngine {
         override val modelName: String = "fake"
         override fun detectSpoofProbability(features: FloatArray): Float = 0.1f

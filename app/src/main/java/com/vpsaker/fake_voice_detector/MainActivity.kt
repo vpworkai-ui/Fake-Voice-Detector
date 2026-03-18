@@ -50,7 +50,8 @@ class MainActivity : ComponentActivity() {
                 detectorEngine = TFLiteSpoofDetectorEngine(
                     context = applicationContext,
                     allowHeuristicFallback = isDebugBuild
-                )
+                ),
+                context = applicationContext
             ),
             securityConfigRepository = SecurityConfigDataStoreRepository(
                 context = applicationContext,
@@ -102,11 +103,13 @@ class MainActivity : ComponentActivity() {
                     },
                     onStartRecording = viewModel::startRecording,
                     onStopRecording = viewModel::stopAndAnalyze,
+                    onStopAndSaveSample = viewModel::stopAndSaveSample,
                     onAsvScoreInputChange = viewModel::updateAsvScoreInput,
                     onSpoofThresholdChange = viewModel::updateSpoofThreshold,
                     onAsvThresholdChange = viewModel::updateAsvThreshold,
                     onUseRemoteAsvChange = viewModel::updateUseRemoteAsv,
                     onAsvEndpointChange = viewModel::updateAsvEndpoint,
+                    onDatasetLabelChange = viewModel::updateDatasetLabel,
                     onDismissError = viewModel::dismissError,
                     modifier = Modifier.fillMaxSize()
                 )

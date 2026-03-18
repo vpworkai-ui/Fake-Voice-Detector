@@ -20,6 +20,11 @@ data class DetectorUiState(
     val lastAsvLatencyMs: Long = 0L,
     val lastTelemetryFlushCount: Int = 0,
     val telemetryStatus: String = "idle",
+    val datasetLabel: String = "bonafide",
+    val savedBonafideCount: Int = 0,
+    val savedSpoofCount: Int = 0,
+    val lastSavedSamplePath: String? = null,
+    val isSavingSample: Boolean = false,
     val sessions: List<DetectionSession> = emptyList(),
     val errorMessage: String? = null
 )

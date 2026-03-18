@@ -124,3 +124,17 @@ Yêu cầu input/output tham khảo ở:
 - [INTEGRATION_GUIDE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/INTEGRATION_GUIDE.md)
 - [BACKEND_REFERENCE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/BACKEND_REFERENCE.md)
 - [backend/README.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/backend/README.md)
+
+## Dataset Capture trong app
+
+App hỗ trợ thu dataset ngay trên thiết bị:
+
+1. Chọn nhãn `BONAFIDE` hoặc `SPOOF` ở mục `Thu dataset`.
+2. Bấm `Start Recording`.
+3. Đọc câu kiểm thử.
+4. Bấm `Stop & Save`.
+
+Mẫu WAV được lưu tại:
+
+- `<app_files_dir>/dataset_samples/bonafide/*.wav`
+- `<app_files_dir>/dataset_samples/spoof/*.wav`

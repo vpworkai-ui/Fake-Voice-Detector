@@ -144,6 +144,43 @@ class VoiceDetectorViewModel(
         }
     }
 
+    fun stopAndSaveSample() {
+        if (!_uiState.value.isRecording || _uiState.value.isAnalyzing) return
+
+        stopTicker()
+        _uiState.update { it.copy(isRecording = false, isAnalyzing = true, isSavingSample = true, errorMessage = null) }
+
+        viewModelScope.launch(dispatchersProvider.io) {
+            val label = _uiState.value.datasetLabel
+            val saveResult = repository.stopRecordingAndSaveSample(label)
+            withContext(dispatchersProvider.main) {
+                saveResult
+                    .onSuccess { savedPath ->
+                        _uiState.update {
+                            val isSpoof = label == "spoof"
+                            it.copy(
+                                isAnalyzing = false,
+                                isSavingSample = false,
+                                lastSavedSamplePath = savedPath,
+                                savedBonafideCount = if (!isSpoof) it.savedBonafideCount + 1 else it.savedBonafideCount,
+                                savedSpoofCount = if (isSpoof) it.savedSpoofCount + 1 else it.savedSpoofCount,
+                                errorMessage = null
+                            )
+                        }
+                    }
+                    .onFailure { throwable ->
+                        _uiState.update {
+                            it.copy(
+                                isAnalyzing = false,
+                                isSavingSample = false,
+                                errorMessage = throwable.message ?: "Save dataset sample failed"
+                            )
+                        }
+                    }
+            }
+        }
+    }
+
     fun updateAsvScoreInput(raw: String) {
         if (raw.length > 4) return
         if (raw.isNotEmpty() && !raw.matches(NUMBER_INPUT_REGEX)) return
@@ -177,6 +214,11 @@ class VoiceDetectorViewModel(
         viewModelScope.launch(dispatchersProvider.io) {
             securityConfigRepository.updateAsvEndpoint(value)
         }
+    }
+
+    fun updateDatasetLabel(label: String) {
+        val normalized = if (label.lowercase() == "spoof") "spoof" else "bonafide"
+        _uiState.update { it.copy(datasetLabel = normalized) }
     }
 
     fun dismissError() {

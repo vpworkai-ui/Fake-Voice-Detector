@@ -32,6 +32,10 @@ class AnalyzeVoiceSpoofingUseCaseTest {
 
         override suspend fun stopRecordingAndAnalyze(): Result<DetectionResult> = Result.success(result)
 
+        override suspend fun stopRecordingAndSaveSample(label: String): Result<String> {
+            return Result.success("/tmp/fake_sample.wav")
+        }
+
         override fun isRecording(): Boolean = false
     }
 }
