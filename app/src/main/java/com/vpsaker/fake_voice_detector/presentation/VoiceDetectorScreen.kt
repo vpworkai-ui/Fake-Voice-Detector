@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,27 +52,26 @@ fun VoiceDetectorScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+
     Column(
         modifier = modifier
             .background(
                 brush = Brush.verticalGradient(
-                    listOf(Color(0xFF032535), Color(0xFF075B6A), Color(0xFFCEE6E6))
+                    listOf(Color(0xFF021722), Color(0xFF094663), Color(0xFFE7F1F3))
                 )
             )
             .verticalScroll(scrollState)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(
-            text = "Voice Spoofing Detector",
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Lớp bảo vệ ASV: anti-spoof + fusion decision (ALLOW/REVIEW/BLOCK).",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.92f)
+        HeaderCard()
+
+        SystemStatusCard(
+            hasAudioPermission = hasAudioPermission,
+            useRemoteAsv = uiState.useRemoteAsv,
+            asvEndpoint = uiState.asvEndpoint,
+            telemetryStatus = uiState.telemetryStatus,
+            strictReleaseMode = uiState.strictReleaseMode
         )
 
         if (!hasAudioPermission) {
@@ -84,6 +84,14 @@ fun VoiceDetectorScreen(
             onStartRecording = onStartRecording,
             onStopRecording = onStopRecording
         )
+
+        uiState.fusionDecisionResult?.let { fusion ->
+            FusionDecisionCard(fusion)
+        }
+
+        uiState.result?.let { result ->
+            ResultCard(result = result)
+        }
 
         FusionControlCard(
             strictReleaseMode = uiState.strictReleaseMode,
@@ -103,23 +111,18 @@ fun VoiceDetectorScreen(
             onAsvEndpointChange = onAsvEndpointChange
         )
 
-        uiState.result?.let { result ->
-            ResultCard(result = result)
-        }
-
-        uiState.fusionDecisionResult?.let { fusion ->
-            FusionDecisionCard(fusion)
-        }
-
         SessionHistoryCard(sessions = uiState.sessions)
 
         uiState.errorMessage?.let { message ->
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE1E1))) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE4E4)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = "Lỗi: $message", color = Color(0xFF7A0000))
+                    Text(text = "Lỗi: $message", color = Color(0xFF7A0000), fontWeight = FontWeight.SemiBold)
                     OutlinedButton(onClick = onDismissError) {
                         Text("Đóng")
                     }
@@ -130,16 +133,71 @@ fun VoiceDetectorScreen(
 }
 
 @Composable
-private fun PermissionCard(onRequestPermission: () -> Unit) {
+private fun HeaderCard() {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.94f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF6F8).copy(alpha = 0.95f)),
+        shape = RoundedCornerShape(18.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Ứng dụng cần quyền microphone để phân tích giọng nói.")
-            Button(onClick = onRequestPermission) {
+            Text(
+                text = "Voice Spoofing Detector",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF062D3B)
+            )
+            Text(
+                text = "Làm theo 3 bước: (1) Kiểm tra trạng thái, (2) Ghi âm, (3) Xem quyết định ALLOW/REVIEW/BLOCK.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF1E495A)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SystemStatusCard(
+    hasAudioPermission: Boolean,
+    useRemoteAsv: Boolean,
+    asvEndpoint: String,
+    telemetryStatus: String,
+    strictReleaseMode: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("Bước 1: Trạng thái hệ thống", fontWeight = FontWeight.Bold)
+            StatusLine("Microphone", if (hasAudioPermission) "Đã cấp quyền" else "Chưa cấp quyền")
+            StatusLine("ASV backend", if (useRemoteAsv) "Đang bật" else "Đang tắt")
+            StatusLine("Endpoint", if (asvEndpoint.isBlank()) "Chưa cấu hình" else asvEndpoint)
+            StatusLine("Telemetry", telemetryStatus)
+            if (strictReleaseMode) {
+                Text("Release mode: fallback đã bị khóa để đảm bảo an toàn.", color = Color(0xFF7D4E00))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionCard(onRequestPermission: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Bước 2: Cấp quyền micro", fontWeight = FontWeight.Bold)
+            Text("Ứng dụng cần quyền ghi âm để phân tích giọng nói.")
+            Button(onClick = onRequestPermission, modifier = Modifier.fillMaxWidth()) {
                 Text("Cấp quyền microphone")
             }
         }
@@ -152,30 +210,35 @@ private fun RecordingCard(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Text("Bước 2: Ghi âm và phân tích", fontWeight = FontWeight.Bold)
+            Text(
+                text = if (uiState.isRecording) "Đang ghi âm... hãy đọc câu xác thực" else "Sẵn sàng ghi âm",
+                color = if (uiState.isRecording) Color(0xFF0D6A43) else Color(0xFF3F4E55)
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (uiState.isRecording) "Recording" else "Idle",
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text(text = if (uiState.isRecording) "Recording" else "Idle", fontWeight = FontWeight.SemiBold)
                 Text(text = "${uiState.recordingSeconds}s")
             }
 
             if (uiState.isAnalyzing) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CircularProgressIndicator()
-                    Text("Đang suy luận mô hình...")
+                    Text("Đang suy luận anti-spoof + gọi ASV backend...")
                 }
             }
 
@@ -218,23 +281,28 @@ private fun FusionControlCard(
     onUseRemoteAsvChange: (Boolean) -> Unit,
     onAsvEndpointChange: (String) -> Unit
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("Fusion Controls", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Bước 3: Cấu hình nâng cao", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
             if (!strictReleaseMode) {
                 OutlinedTextField(
                     value = asvScoreInput,
                     onValueChange = onAsvScoreInputChange,
-                    label = { Text("ASV score (0.0 - 1.0)") },
+                    label = { Text("Manual ASV score (debug)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
             } else {
-                Text("Release mode: manual ASV score is disabled.")
+                Text("Release mode: manual ASV đã tắt.")
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -247,6 +315,7 @@ private fun FusionControlCard(
                     enabled = !strictReleaseMode
                 )
             }
+
             OutlinedTextField(
                 value = asvEndpoint,
                 onValueChange = onAsvEndpointChange,
@@ -254,44 +323,38 @@ private fun FusionControlCard(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
-            Text("ASV source: $lastAsvSource")
-            Text("ASV latency: ${lastAsvLatencyMs}ms")
-            Text("Telemetry: $telemetryStatus (flushed: $lastTelemetryFlushCount)")
 
             Text("Spoof threshold: ${"%.2f".format(spoofThreshold)}")
-            Slider(
-                value = spoofThreshold,
-                onValueChange = onSpoofThresholdChange,
-                valueRange = 0.05f..0.95f
-            )
+            Slider(value = spoofThreshold, onValueChange = onSpoofThresholdChange, valueRange = 0.05f..0.95f)
 
             Text("ASV threshold: ${"%.2f".format(asvThreshold)}")
-            Slider(
-                value = asvThreshold,
-                onValueChange = onAsvThresholdChange,
-                valueRange = 0.05f..0.95f
-            )
+            Slider(value = asvThreshold, onValueChange = onAsvThresholdChange, valueRange = 0.05f..0.95f)
+
+            Text("ASV source: $lastAsvSource | latency: ${lastAsvLatencyMs}ms")
+            Text("Telemetry: $telemetryStatus | flushed: $lastTelemetryFlushCount")
         }
     }
 }
 
 @Composable
 private fun ResultCard(result: DetectionResult) {
-    val spoofColor = if (result.isSpoof) Color(0xFFC0392B) else Color(0xFF1E8449)
+    val spoofColor = if (result.isSpoof) Color(0xFFBC2D1F) else Color(0xFF1E8449)
     val spoofPercent = (result.spoofProbability * 100).toInt()
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f)),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Text("Bước 3: Kết quả anti-spoof", fontWeight = FontWeight.Bold)
             Text(
                 text = if (result.isSpoof) "Kết quả: SPOOF" else "Kết quả: BONAFIDE",
                 color = spoofColor,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
             Text(text = "Spoof probability: $spoofPercent%")
             LinearProgressIndicator(
@@ -301,8 +364,7 @@ private fun ResultCard(result: DetectionResult) {
             )
             Text(text = "Confidence: ${(result.confidence * 100).toInt()}%")
             Text(text = "Duration: ${"%.2f".format(result.recordingDurationSec)}s")
-            Text(text = "Decision threshold: ${"%.2f".format(result.threshold)}")
-            Text(text = "Engine: ${result.modelName}")
+            Text(text = "Threshold: ${"%.2f".format(result.threshold)} | Engine: ${result.modelName}")
         }
     }
 }
@@ -311,40 +373,45 @@ private fun ResultCard(result: DetectionResult) {
 private fun FusionDecisionCard(result: FusionDecisionResult) {
     val color = when (result.decision) {
         AuthenticationDecision.ALLOW -> Color(0xFF1E8449)
-        AuthenticationDecision.REVIEW -> Color(0xFFAF7F0C)
+        AuthenticationDecision.REVIEW -> Color(0xFFA87503)
         AuthenticationDecision.BLOCK -> Color(0xFFC0392B)
     }
 
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Text("Quyết định cuối", fontWeight = FontWeight.Bold)
             Text(
-                text = "Fusion Decision: ${result.decision.name}",
-                style = MaterialTheme.typography.titleMedium,
+                text = result.decision.name,
+                style = MaterialTheme.typography.headlineSmall,
                 color = color,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
             Text("Reason: ${result.reason}")
-            Text("ASV score: ${"%.2f".format(result.asvScore)}")
-            Text("Spoof probability: ${"%.2f".format(result.spoofProbability)}")
-            Text("Pass ASV threshold: ${if (result.meetsAsvThreshold) "YES" else "NO"}")
-            Text("Pass spoof threshold: ${if (result.meetsSpoofThreshold) "YES" else "NO"}")
+            Text("ASV score: ${"%.2f".format(result.asvScore)} | Spoof: ${"%.2f".format(result.spoofProbability)}")
+            Text("Pass ASV: ${if (result.meetsAsvThreshold) "YES" else "NO"} | Pass spoof: ${if (result.meetsSpoofThreshold) "YES" else "NO"}")
         }
     }
 }
 
 @Composable
 private fun SessionHistoryCard(sessions: List<DetectionSession>) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f))) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.96f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
                 .heightIn(max = 280.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Recent Sessions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Lịch sử gần đây", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (sessions.isEmpty()) {
                 Text("Chưa có phiên nào.")
             } else {
@@ -357,6 +424,18 @@ private fun SessionHistoryCard(sessions: List<DetectionSession>) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatusLine(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color(0xFF334750))
+        Text(value, color = Color(0xFF0D536A), fontWeight = FontWeight.SemiBold)
     }
 }
 
