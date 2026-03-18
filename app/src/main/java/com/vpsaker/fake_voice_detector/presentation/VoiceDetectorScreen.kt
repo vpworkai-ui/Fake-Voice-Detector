@@ -94,6 +94,8 @@ fun VoiceDetectorScreen(
             asvEndpoint = uiState.asvEndpoint,
             lastAsvSource = uiState.lastAsvSource,
             lastAsvLatencyMs = uiState.lastAsvLatencyMs,
+            telemetryStatus = uiState.telemetryStatus,
+            lastTelemetryFlushCount = uiState.lastTelemetryFlushCount,
             onAsvScoreInputChange = onAsvScoreInputChange,
             onSpoofThresholdChange = onSpoofThresholdChange,
             onAsvThresholdChange = onAsvThresholdChange,
@@ -208,6 +210,8 @@ private fun FusionControlCard(
     asvEndpoint: String,
     lastAsvSource: String,
     lastAsvLatencyMs: Long,
+    telemetryStatus: String,
+    lastTelemetryFlushCount: Int,
     onAsvScoreInputChange: (String) -> Unit,
     onSpoofThresholdChange: (Float) -> Unit,
     onAsvThresholdChange: (Float) -> Unit,
@@ -252,6 +256,7 @@ private fun FusionControlCard(
             )
             Text("ASV source: $lastAsvSource")
             Text("ASV latency: ${lastAsvLatencyMs}ms")
+            Text("Telemetry: $telemetryStatus (flushed: $lastTelemetryFlushCount)")
 
             Text("Spoof threshold: ${"%.2f".format(spoofThreshold)}")
             Slider(

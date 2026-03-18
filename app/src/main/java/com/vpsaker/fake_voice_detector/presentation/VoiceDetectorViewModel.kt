@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.URI
 
 class VoiceDetectorViewModel(
     private val repository: VoiceSpoofingRepository,
@@ -128,7 +129,7 @@ class VoiceDetectorViewModel(
                             )
                         }
 
-                        logTelemetry(patchedDetection, fusion, asvResolution)
+                        logTelemetry(patchedDetection, fusion, asvResolution, current.asvEndpoint)
                     }
                     .onFailure { throwable ->
                         _uiState.update {
@@ -248,23 +249,67 @@ class VoiceDetectorViewModel(
     private fun logTelemetry(
         detection: com.vpsaker.fake_voice_detector.domain.model.DetectionResult,
         fusion: com.vpsaker.fake_voice_detector.domain.model.FusionDecisionResult,
-        asvResolution: AsvResolution
+        asvResolution: AsvResolution,
+        asvEndpoint: String
     ) {
         viewModelScope.launch(dispatchersProvider.io) {
-            telemetryRepository.logAuthenticationEvent(
-                AuthTelemetryEvent(
-                    timestampMs = System.currentTimeMillis(),
-                    spoofProbability = detection.spoofProbability,
-                    asvScore = fusion.asvScore,
-                    decision = fusion.decision.name,
-                    reason = fusion.reason,
-                    asvSource = asvResolution.source,
-                    asvLatencyMs = asvResolution.latencyMs,
-                    modelName = detection.modelName,
-                    recordingDurationSec = detection.recordingDurationSec
-                )
+            val event = AuthTelemetryEvent(
+                timestampMs = System.currentTimeMillis(),
+                spoofProbability = detection.spoofProbability,
+                asvScore = fusion.asvScore,
+                decision = fusion.decision.name,
+                reason = fusion.reason,
+                asvSource = asvResolution.source,
+                asvLatencyMs = asvResolution.latencyMs,
+                modelName = detection.modelName,
+                recordingDurationSec = detection.recordingDurationSec
             )
+            telemetryRepository.logAuthenticationEvent(
+                event
+            ).onFailure { throwable ->
+                _uiState.update {
+                    it.copy(telemetryStatus = "log-failed: ${throwable.message}")
+                }
+                return@launch
+            }
+
+            val telemetryEndpoint = deriveTelemetryEndpoint(asvEndpoint)
+            if (telemetryEndpoint == null) {
+                _uiState.update {
+                    it.copy(telemetryStatus = "queued-local")
+                }
+                return@launch
+            }
+
+            telemetryRepository.flushPendingEvents(telemetryEndpoint)
+                .onSuccess { flushedCount ->
+                    _uiState.update {
+                        it.copy(
+                            lastTelemetryFlushCount = flushedCount,
+                            telemetryStatus = if (flushedCount > 0) "synced" else "no-pending"
+                        )
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(telemetryStatus = "sync-failed: ${throwable.message}")
+                    }
+                }
         }
+    }
+
+    private fun deriveTelemetryEndpoint(asvEndpoint: String): String? {
+        if (asvEndpoint.isBlank()) return null
+        return runCatching {
+            val uri = URI(asvEndpoint.trim())
+            val basePath = uri.path?.trimEnd('/').orEmpty()
+            val telemetryPath = if (basePath.endsWith("/asv/score")) {
+                basePath.removeSuffix("/asv/score") + "/telemetry/events"
+            } else {
+                "$basePath/telemetry/events"
+            }.replace("//", "/")
+            URI(uri.scheme, uri.authority, telemetryPath, null, null).toString()
+        }.getOrNull()
     }
 
     private fun startTicker() {

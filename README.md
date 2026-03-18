@@ -15,6 +15,8 @@
   - `ASV threshold`
 - Lưu cấu hình ngưỡng bằng `DataStore` (không mất sau khi tắt app).
 - Lịch sử phiên phân tích gần nhất để audit nhanh.
+- Quality gate đầu vào (duration/volume/clipping) trước khi ra quyết định.
+- Telemetry queue cục bộ + retry upload (store-and-forward).
 
 ## Kiến trúc
 
@@ -62,6 +64,10 @@ Mỗi phiên xác thực sẽ được ghi local JSONL tại:
 
 `<app_files_dir>/telemetry/voice_auth_events.jsonl`
 
+Event chờ upload được giữ tại:
+
+`<app_files_dir>/telemetry/voice_auth_pending.jsonl`
+
 Các trường chính gồm:
 - `timestampMs`
 - `spoofProbability`
@@ -72,6 +78,11 @@ Các trường chính gồm:
 - `asvLatencyMs`
 - `modelName`
 - `recordingDurationSec`
+
+Ứng dụng sẽ tự thử upload pending events tới endpoint telemetry suy ra từ ASV endpoint:
+
+- nếu ASV endpoint là `/api/asv/score`
+- thì telemetry endpoint mặc định là `/api/telemetry/events`
 
 ## Tích hợp model anti-spoof thật
 

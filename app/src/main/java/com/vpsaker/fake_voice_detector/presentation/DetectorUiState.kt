@@ -18,6 +18,8 @@ data class DetectorUiState(
     val asvScoreInput: String = "0.80",
     val lastAsvSource: String = "manual",
     val lastAsvLatencyMs: Long = 0L,
+    val lastTelemetryFlushCount: Int = 0,
+    val telemetryStatus: String = "idle",
     val sessions: List<DetectionSession> = emptyList(),
     val errorMessage: String? = null
 )
