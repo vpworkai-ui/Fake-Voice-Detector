@@ -23,3 +23,7 @@ backend/app/__pycache__/
 # ML training
 ml/.venv/
 ml/artifacts/
+
+ml/__pycache__/
+
+ml/__pycache__/
