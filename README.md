@@ -123,3 +123,4 @@ Yêu cầu input/output tham khảo ở:
 
 - [INTEGRATION_GUIDE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/INTEGRATION_GUIDE.md)
 - [BACKEND_REFERENCE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/BACKEND_REFERENCE.md)
+- [backend/README.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/backend/README.md)

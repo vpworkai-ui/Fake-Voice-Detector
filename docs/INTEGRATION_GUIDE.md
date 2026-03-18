@@ -25,6 +25,36 @@ ASV_API_KEY=replace_with_real_key
 TELEMETRY_API_KEY=replace_with_real_key
 ```
 
+## 1.1) Chạy backend mẫu ngay trong repo (cho đồ án)
+
+Backend mẫu nằm ở `backend/` với FastAPI:
+- `POST /api/asv/score`
+- `POST /api/telemetry/events`
+
+Chạy local:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+./run.sh
+```
+
+Sau đó cấu hình app:
+
+```properties
+ASV_ENDPOINT=http://10.0.2.2:8080/api/asv/score
+TELEMETRY_ENDPOINT=http://10.0.2.2:8080/api/telemetry/events
+ASV_API_KEY=replace_with_asv_key
+TELEMETRY_API_KEY=replace_with_telemetry_key
+```
+
+Ghi chú:
+- `10.0.2.2` dùng cho Android Emulator để truy cập máy host.
+- Nếu chạy trên thiết bị thật, thay bằng IP LAN của máy chạy backend.
+
 ## 2) Model anti-spoof production
 
 Đặt model tại:
