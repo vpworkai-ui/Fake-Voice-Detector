@@ -7,7 +7,9 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-class HttpAsvScoreRepository : AsvScoreRepository {
+class HttpAsvScoreRepository(
+    private val apiKey: String = ""
+) : AsvScoreRepository {
 
     override suspend fun fetchAsvScore(request: AsvScoreRequest): Result<AsvScoreResult> {
         return runCatching {
@@ -20,6 +22,10 @@ class HttpAsvScoreRepository : AsvScoreRepository {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Accept", "application/json")
+                if (apiKey.isNotBlank()) {
+                    setRequestProperty("Authorization", "Bearer $apiKey")
+                    setRequestProperty("X-Api-Key", apiKey)
+                }
             }
 
             connection.outputStream.bufferedWriter().use { writer ->

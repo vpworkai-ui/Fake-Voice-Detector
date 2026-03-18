@@ -15,15 +15,17 @@ private const val DATASTORE_NAME = "voice_security_config"
 private val Context.securityDataStore by preferencesDataStore(name = DATASTORE_NAME)
 
 class SecurityConfigDataStoreRepository(
-    private val context: Context
+    private val context: Context,
+    private val defaultUseRemoteAsv: Boolean = false,
+    private val defaultAsvEndpoint: String = DEFAULT_ASV_ENDPOINT
 ) : SecurityConfigRepository {
 
     override val configFlow: Flow<SecurityConfig> = context.securityDataStore.data.map { preferences ->
         SecurityConfig(
             spoofThreshold = preferences[SPOOF_THRESHOLD_KEY] ?: DEFAULT_SPOOF_THRESHOLD,
             asvThreshold = preferences[ASV_THRESHOLD_KEY] ?: DEFAULT_ASV_THRESHOLD,
-            useRemoteAsv = preferences[USE_REMOTE_ASV_KEY] ?: DEFAULT_USE_REMOTE_ASV,
-            asvEndpoint = preferences[ASV_ENDPOINT_KEY] ?: DEFAULT_ASV_ENDPOINT
+            useRemoteAsv = preferences[USE_REMOTE_ASV_KEY] ?: defaultUseRemoteAsv,
+            asvEndpoint = preferences[ASV_ENDPOINT_KEY] ?: defaultAsvEndpoint
         )
     }
 
@@ -59,7 +61,6 @@ class SecurityConfigDataStoreRepository(
 
         const val DEFAULT_SPOOF_THRESHOLD = 0.5f
         const val DEFAULT_ASV_THRESHOLD = 0.75f
-        const val DEFAULT_USE_REMOTE_ASV = false
         const val DEFAULT_ASV_ENDPOINT = "https://example.com/api/asv/score"
         const val MIN_THRESHOLD = 0.05f
         const val MAX_THRESHOLD = 0.95f

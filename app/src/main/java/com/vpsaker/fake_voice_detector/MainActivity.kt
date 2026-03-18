@@ -45,10 +45,18 @@ class MainActivity : ComponentActivity() {
                     allowHeuristicFallback = isDebugBuild
                 )
             ),
-            securityConfigRepository = SecurityConfigDataStoreRepository(applicationContext),
-            asvScoreRepository = HttpAsvScoreRepository(),
-            telemetryRepository = FileTelemetryRepository(applicationContext),
-            strictReleaseMode = !isDebugBuild
+            securityConfigRepository = SecurityConfigDataStoreRepository(
+                context = applicationContext,
+                defaultUseRemoteAsv = !isDebugBuild,
+                defaultAsvEndpoint = BuildConfig.ASV_ENDPOINT_DEFAULT
+            ),
+            asvScoreRepository = HttpAsvScoreRepository(apiKey = BuildConfig.ASV_API_KEY),
+            telemetryRepository = FileTelemetryRepository(
+                context = applicationContext,
+                apiKey = BuildConfig.TELEMETRY_API_KEY
+            ),
+            strictReleaseMode = !isDebugBuild,
+            telemetryEndpointOverride = BuildConfig.TELEMETRY_ENDPOINT_DEFAULT
         )
     }
 

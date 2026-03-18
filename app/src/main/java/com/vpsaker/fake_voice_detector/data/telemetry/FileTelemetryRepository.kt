@@ -9,7 +9,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class FileTelemetryRepository(
-    private val context: Context
+    private val context: Context,
+    private val apiKey: String = ""
 ) : TelemetryRepository {
 
     override suspend fun logAuthenticationEvent(event: AuthTelemetryEvent): Result<Unit> {
@@ -62,6 +63,10 @@ class FileTelemetryRepository(
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Accept", "application/json")
+                if (apiKey.isNotBlank()) {
+                    setRequestProperty("Authorization", "Bearer $apiKey")
+                    setRequestProperty("X-Api-Key", apiKey)
+                }
             }
 
             connection.outputStream.bufferedWriter().use { writer ->

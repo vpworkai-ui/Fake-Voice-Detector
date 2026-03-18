@@ -6,6 +6,19 @@ plugins {
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+fun resolveConfig(name: String, defaultValue: String): String {
+    return (project.findProperty(name) as String?)?.trim()
+        ?: System.getenv(name)?.trim()
+        ?: defaultValue
+}
+
+fun quoteForBuildConfig(value: String): String {
+    val escaped = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+    return "\"$escaped\""
+}
+
 android {
     namespace = "com.vpsaker.fake_voice_detector"
     compileSdk {
@@ -18,6 +31,26 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        buildConfigField(
+            "String",
+            "ASV_ENDPOINT_DEFAULT",
+            quoteForBuildConfig(resolveConfig("ASV_ENDPOINT", "https://example.com/api/asv/score"))
+        )
+        buildConfigField(
+            "String",
+            "TELEMETRY_ENDPOINT_DEFAULT",
+            quoteForBuildConfig(resolveConfig("TELEMETRY_ENDPOINT", ""))
+        )
+        buildConfigField(
+            "String",
+            "ASV_API_KEY",
+            quoteForBuildConfig(resolveConfig("ASV_API_KEY", ""))
+        )
+        buildConfigField(
+            "String",
+            "TELEMETRY_API_KEY",
+            quoteForBuildConfig(resolveConfig("TELEMETRY_API_KEY", ""))
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,6 +70,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     androidResources {
         noCompress += "tflite"

@@ -33,6 +33,7 @@ class VoiceDetectorViewModel(
     private val analyzeVoiceSpoofingUseCase: AnalyzeVoiceSpoofingUseCase,
     private val fuseAuthenticationUseCase: FuseAuthenticationUseCase,
     private val strictReleaseMode: Boolean,
+    private val telemetryEndpointOverride: String,
     private val dispatchersProvider: DispatchersProvider = DefaultDispatchersProvider
 ) : ViewModel() {
 
@@ -187,11 +188,18 @@ class VoiceDetectorViewModel(
             securityConfigRepository.configFlow.collect { config ->
                 withContext(dispatchersProvider.main) {
                     _uiState.update {
+                        val endpoint = config.asvEndpoint.trim()
+                        val releaseEndpointError = if (strictReleaseMode && isPlaceholderEndpoint(endpoint)) {
+                            "Release mode requires ASV_ENDPOINT to be configured (not example.com)."
+                        } else {
+                            null
+                        }
                         it.copy(
                             spoofThreshold = config.spoofThreshold,
                             asvThreshold = config.asvThreshold,
                             useRemoteAsv = if (strictReleaseMode) true else config.useRemoteAsv,
-                            asvEndpoint = config.asvEndpoint
+                            asvEndpoint = endpoint,
+                            errorMessage = releaseEndpointError ?: it.errorMessage
                         )
                     }
                 }
@@ -299,6 +307,7 @@ class VoiceDetectorViewModel(
     }
 
     private fun deriveTelemetryEndpoint(asvEndpoint: String): String? {
+        if (telemetryEndpointOverride.isNotBlank()) return telemetryEndpointOverride.trim()
         if (asvEndpoint.isBlank()) return null
         return runCatching {
             val uri = URI(asvEndpoint.trim())
@@ -310,6 +319,12 @@ class VoiceDetectorViewModel(
             }.replace("//", "/")
             URI(uri.scheme, uri.authority, telemetryPath, null, null).toString()
         }.getOrNull()
+    }
+
+    private fun isPlaceholderEndpoint(endpoint: String): Boolean {
+        if (endpoint.isBlank()) return true
+        val normalized = endpoint.lowercase()
+        return normalized.contains("example.com") || normalized.contains("localhost")
     }
 
     private fun startTicker() {
@@ -360,6 +375,7 @@ class VoiceDetectorViewModelFactory(
     private val asvScoreRepository: AsvScoreRepository,
     private val telemetryRepository: TelemetryRepository,
     private val strictReleaseMode: Boolean,
+    private val telemetryEndpointOverride: String = "",
     private val dispatchersProvider: DispatchersProvider = DefaultDispatchersProvider
 ) : ViewModelProvider.Factory {
 
@@ -374,6 +390,7 @@ class VoiceDetectorViewModelFactory(
                 analyzeVoiceSpoofingUseCase = AnalyzeVoiceSpoofingUseCase(repository),
                 fuseAuthenticationUseCase = FuseAuthenticationUseCase(),
                 strictReleaseMode = strictReleaseMode,
+                telemetryEndpointOverride = telemetryEndpointOverride,
                 dispatchersProvider = dispatchersProvider
             ) as T
         }

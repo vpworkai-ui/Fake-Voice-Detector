@@ -8,7 +8,7 @@
 - Runtime suy luận dùng `Google LiteRT` (on-device).
 - Ghi âm microphone PCM 16kHz + trích xuất đặc trưng.
 - Fusion decision với ASV score: `ALLOW / REVIEW / BLOCK`.
-- Hỗ trợ gọi ASV backend qua HTTP (có fallback sang manual score khi backend lỗi).
+- Hỗ trợ gọi ASV backend qua HTTP (header auth bằng API key nếu cấu hình).
 - Release hardening: bản release bắt buộc model anti-spoof thật + ASV backend thật (không heuristic/manual fallback).
 - Calibration ngưỡng ngay trên app:
   - `spoof threshold`
@@ -22,14 +22,32 @@
 
 - `presentation`: Compose UI + ViewModel + state
 - `domain`: model, repository contract, use case
-- `data`: microphone recorder, feature extractor, detector engine (LiteRT + fallback), DataStore config
+- `data`: microphone recorder, feature extractor, detector engine LiteRT, DataStore config
 
 Luồng xử lý:
 1. Xin quyền microphone.
 2. Thu âm giọng nói.
 3. Trích xuất đặc trưng âm thanh.
-4. Chạy model LiteRT (nếu có) hoặc heuristic fallback.
+4. Chạy model LiteRT.
 5. Kết hợp với ASV score để đưa ra quyết định fusion.
+
+## Cấu hình tích hợp backend
+
+Thiết lập các biến sau trong `gradle.properties` hoặc environment variables:
+
+- `ASV_ENDPOINT`
+- `TELEMETRY_ENDPOINT`
+- `ASV_API_KEY`
+- `TELEMETRY_API_KEY`
+
+Ví dụ:
+
+```properties
+ASV_ENDPOINT=https://your-domain.com/api/asv/score
+TELEMETRY_ENDPOINT=https://your-domain.com/api/telemetry/events
+ASV_API_KEY=replace_me
+TELEMETRY_API_KEY=replace_me
+```
 
 ## ASV Backend Integration
 
@@ -56,7 +74,7 @@ Backend cần trả về tối thiểu:
 }
 ```
 
-Nếu backend lỗi/timeout, app tự fallback sang `manual ASV score`.
+Ở `release`, endpoint placeholder (`example.com` / `localhost`) sẽ bị chặn theo fail-safe policy.
 
 ## Telemetry Local Log
 
@@ -101,9 +119,7 @@ Yêu cầu input/output tham khảo ở:
 ./gradlew assembleDebug
 ```
 
-## Lưu ý production
+## Tài liệu triển khai
 
-- Heuristic fallback chỉ để giữ pipeline chạy khi chưa có model thật.
-- Cần model anti-spoof huấn luyện bài bản trên dữ liệu phù hợp miền nghiệp vụ.
-- Nên triển khai thêm step-up verification khi kết quả `REVIEW`.
-- Nên đẩy log phiên xác thực lên backend để theo dõi drift và tuning threshold theo thời gian.
+- [INTEGRATION_GUIDE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/INTEGRATION_GUIDE.md)
+- [BACKEND_REFERENCE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/BACKEND_REFERENCE.md)
