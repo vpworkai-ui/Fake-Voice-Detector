@@ -51,6 +51,10 @@ ASV_API_KEY=replace_with_asv_key
 TELEMETRY_API_KEY=replace_with_telemetry_key
 ```
 
+Hoặc không cần set gì thêm cho debug:
+- App debug đã mặc định trỏ local backend tại `10.0.2.2:8080`.
+- API key mặc định để trống, tương thích với `.env.example`.
+
 Ghi chú:
 - `10.0.2.2` dùng cho Android Emulator để truy cập máy host.
 - Nếu chạy trên thiết bị thật, thay bằng IP LAN của máy chạy backend.

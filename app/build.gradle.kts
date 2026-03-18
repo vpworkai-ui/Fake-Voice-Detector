@@ -56,6 +56,22 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "ASV_ENDPOINT_DEFAULT",
+                quoteForBuildConfig(
+                    resolveConfig("ASV_ENDPOINT_DEBUG", "http://10.0.2.2:8080/api/asv/score")
+                )
+            )
+            buildConfigField(
+                "String",
+                "TELEMETRY_ENDPOINT_DEFAULT",
+                quoteForBuildConfig(
+                    resolveConfig("TELEMETRY_ENDPOINT_DEBUG", "http://10.0.2.2:8080/api/telemetry/events")
+                )
+            )
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

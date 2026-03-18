@@ -26,11 +26,19 @@ Server mặc định chạy `http://0.0.0.0:8080`.
 Trong `.env`:
 
 ```env
-ASV_API_KEY=replace_with_asv_key
-TELEMETRY_API_KEY=replace_with_telemetry_key
+ASV_API_KEY=
+TELEMETRY_API_KEY=
 ```
 
 Nếu key để trống, endpoint tương ứng sẽ chạy không yêu cầu auth.
+
+## Kết nối với app Android (debug)
+
+Debug app đã mặc định trỏ local backend:
+- `ASV_ENDPOINT_DEFAULT=http://10.0.2.2:8080/api/asv/score`
+- `TELEMETRY_ENDPOINT_DEFAULT=http://10.0.2.2:8080/api/telemetry/events`
+
+`10.0.2.2` là host loopback của Android Emulator.
 
 ## Log file
 

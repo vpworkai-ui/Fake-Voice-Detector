@@ -35,6 +35,13 @@ class MainActivity : ComponentActivity() {
     private val isDebugBuild: Boolean
         get() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
+    private fun hasConfiguredAsvEndpoint(endpoint: String): Boolean {
+        val normalized = endpoint.trim().lowercase()
+        if (normalized.isBlank()) return false
+        if (normalized.contains("example.com")) return false
+        return normalized.startsWith("http://") || normalized.startsWith("https://")
+    }
+
     private val viewModel: VoiceDetectorViewModel by viewModels {
         VoiceDetectorViewModelFactory(
             repository = VoiceSpoofingRepositoryImpl(
@@ -47,7 +54,11 @@ class MainActivity : ComponentActivity() {
             ),
             securityConfigRepository = SecurityConfigDataStoreRepository(
                 context = applicationContext,
-                defaultUseRemoteAsv = !isDebugBuild,
+                defaultUseRemoteAsv = if (isDebugBuild) {
+                    hasConfiguredAsvEndpoint(BuildConfig.ASV_ENDPOINT_DEFAULT)
+                } else {
+                    true
+                },
                 defaultAsvEndpoint = BuildConfig.ASV_ENDPOINT_DEFAULT
             ),
             asvScoreRepository = HttpAsvScoreRepository(apiKey = BuildConfig.ASV_API_KEY),
