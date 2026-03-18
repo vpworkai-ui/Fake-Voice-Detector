@@ -138,3 +138,18 @@ Mẫu WAV được lưu tại:
 
 - `<app_files_dir>/dataset_samples/bonafide/*.wav`
 - `<app_files_dir>/dataset_samples/spoof/*.wav`
+
+## Training model từ dữ liệu đã thu
+
+Pipeline train tự động nằm ở:
+
+- [ml/README.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/ml/README.md)
+- [ml/train_spoof_model.py](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/ml/train_spoof_model.py)
+
+Luồng cơ bản:
+
+1. Export dữ liệu từ thiết bị:
+`./scripts/export_dataset_from_device.sh`
+2. Train model trong `ml/`:
+`python train_spoof_model.py`
+3. Copy file `voice_spoof_detector.tflite` vào `app/src/main/assets/models/`.
