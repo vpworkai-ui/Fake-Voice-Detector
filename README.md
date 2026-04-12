@@ -1,62 +1,99 @@
-# Fake Voice Detector (Android)
+# VoiceGuard — Deepfake Voice Detection trên Android
 
-Ứng dụng Android phát hiện giả mạo giọng nói (voice spoofing detection) nhằm bổ sung lớp bảo vệ cho hệ thống xác thực giọng nói (ASV).
+Ứng dụng Android phát hiện giả mạo giọng nói (Voice Spoofing / Deepfake Voice) sử dụng mô hình DNN 12KB chạy hoàn toàn **on-device** qua TensorFlow Lite.
 
-## Điểm hoàn thiện hiện tại
+> Luận văn Thạc sĩ — Nguyễn Kim Ngân (CHAT10) — Học viện Kỹ thuật Mật mã — GVHD: TS. Mai Đức Thọ
 
-- Kiến trúc `data/domain/presentation` rõ ràng, dễ mở rộng.
-- Runtime suy luận dùng `Google LiteRT` (on-device).
-- Ghi âm microphone PCM 16kHz + trích xuất đặc trưng.
-- Fusion decision với ASV score: `ALLOW / REVIEW / BLOCK`.
-- Hỗ trợ gọi ASV backend qua HTTP (header auth bằng API key nếu cấu hình).
-- Release hardening: bản release bắt buộc model anti-spoof thật + ASV backend thật (không heuristic/manual fallback).
-- Calibration ngưỡng ngay trên app:
-  - `spoof threshold`
-  - `ASV threshold`
-- Lưu cấu hình ngưỡng bằng `DataStore` (không mất sau khi tắt app).
-- Lịch sử phiên phân tích gần nhất để audit nhanh.
-- Quality gate đầu vào (duration/volume/clipping) trước khi ra quyết định.
-- Telemetry queue cục bộ + retry upload (store-and-forward).
+---
+
+## Yêu cầu môi trường
+
+| Công cụ | Phiên bản |
+|---------|-----------|
+| **JDK** | **17** (bắt buộc — JDK 18+ gây lỗi Kotlin compiler) |
+| Android SDK | API 35 (compileSdk), minSdk 30 (Android 11+) |
+| Android Studio | Ladybug trở lên |
+
+> Nếu dùng JDK khác, chạy: `JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew assembleDebug`
+
+---
+
+## Build và chạy nhanh
+
+```bash
+# Clone
+git clone <repo-url>
+cd fake-voice-detector
+
+# Build debug APK (không cần cấu hình thêm gì)
+./gradlew assembleDebug
+
+# Cài lên thiết bị/emulator đang kết nối
+./gradlew installDebug
+```
+
+App sẽ chạy được **ngay lập tức** — mô hình TFLite đã được nhúng sẵn trong APK.
+
+---
+
+## Tính năng
+
+- **Tab Phát hiện**: Ghi âm → phát hiện BONAFIDE / SPOOF on-device, hiển thị xác suất và hiệu năng (latency, RAM)
+- **Tab Lịch sử**: Lịch sử phiên phân tích, xuất CSV
+- **Tab Cài đặt**: Điều chỉnh ngưỡng spoof/ASV, kết nối ASV backend từ xa, thông tin mô hình
+
+---
 
 ## Kiến trúc
 
-- `presentation`: Compose UI + ViewModel + state
-- `domain`: model, repository contract, use case
-- `data`: microphone recorder, feature extractor, detector engine LiteRT, DataStore config
+```
+presentation/   ← Jetpack Compose UI + ViewModel (MVI, StateFlow)
+domain/         ← Use cases, Repository interfaces, Domain models
+data/           ← AudioRecorder, FeatureExtractor, TFLite engine, DataStore
+```
 
-Luồng xử lý:
-1. Xin quyền microphone.
-2. Thu âm giọng nói.
-3. Trích xuất đặc trưng âm thanh.
-4. Chạy model LiteRT.
-5. Kết hợp với ASV score để đưa ra quyết định fusion.
+**Pipeline phát hiện on-device:**
+1. Thu âm PCM 16kHz qua AudioRecord API
+2. VAD (Voice Activity Detection) loại bỏ khoảng lặng
+3. Trích xuất 8 đặc trưng âm thanh (RMS, ZCR, Peak, Crest…)
+4. Chuẩn hóa và chạy mô hình TFLite 12KB
+5. Ra quyết định: BONAFIDE / SPOOF → kết hợp ASV → ALLOW / REVIEW / BLOCK
 
-## Cấu hình tích hợp backend
+---
 
-Thiết lập các biến sau trong `gradle.properties` hoặc environment variables:
+## Mô hình AI
 
-- `ASV_ENDPOINT`
-- `TELEMETRY_ENDPOINT`
-- `ASV_API_KEY`
-- `TELEMETRY_API_KEY`
+| Thông số | Giá trị |
+|----------|---------|
+| Kiến trúc | DNN: Dense(64,ReLU) → Dropout(0.2) → Dense(32,ReLU) → Dense(1,Sigmoid) |
+| Tham số | 2.689 |
+| Kích thước TFLite | 12 KB |
+| Dữ liệu huấn luyện | VIVOS (bonafide) + mc_thu_hue (spoof) — 24.840 mẫu tiếng Việt |
+| Accuracy | 98.23% |
+| F1-Score | 98.23% |
+| AUC | 0.9974 |
+| EER | 1.93% |
 
-Ví dụ:
+File model: `app/src/main/assets/models/voice_spoof_detector.tflite`
+
+---
+
+## Cấu hình ASV Backend (tuỳ chọn)
+
+Mặc định app hoạt động **offline** hoàn toàn. Để bật xác minh ASV từ xa, thêm vào `gradle.properties` (hoặc biến môi trường):
 
 ```properties
 ASV_ENDPOINT=https://your-domain.com/api/asv/score
 TELEMETRY_ENDPOINT=https://your-domain.com/api/telemetry/events
-ASV_API_KEY=replace_me
-TELEMETRY_API_KEY=replace_me
+ASV_API_KEY=your_key_here
+TELEMETRY_API_KEY=your_key_here
 ```
 
-## ASV Backend Integration
+Hoặc cấu hình trực tiếp trong Tab Cài đặt của app.
 
-Trên UI:
-- Bật `Use remote ASV backend`.
-- Nhập `ASV endpoint URL`.
+### API contract
 
-App sẽ gọi `POST` JSON tới endpoint:
-
+**Request** (POST JSON):
 ```json
 {
   "spoofProbability": 0.21,
@@ -65,8 +102,7 @@ App sẽ gọi `POST` JSON tới endpoint:
 }
 ```
 
-Backend cần trả về tối thiểu:
-
+**Response**:
 ```json
 {
   "asvScore": 0.84,
@@ -74,82 +110,32 @@ Backend cần trả về tối thiểu:
 }
 ```
 
-Ở `release`, endpoint placeholder (`example.com` / `localhost`) sẽ bị chặn theo fail-safe policy.
+---
 
-## Telemetry Local Log
+## Ma trận quyết định
 
-Mỗi phiên xác thực sẽ được ghi local JSONL tại:
+| CM (on-device) | ASV score | Quyết định |
+|----------------|-----------|-----------|
+| BONAFIDE | ≥ 0.70 | **ALLOW** |
+| BONAFIDE | 0.50 – 0.70 | **REVIEW** |
+| BONAFIDE | < 0.50 | **BLOCK** |
+| SPOOF | bất kỳ | **BLOCK** |
 
-`<app_files_dir>/telemetry/voice_auth_events.jsonl`
+*(Ngưỡng có thể điều chỉnh trong Tab Cài đặt)*
 
-Event chờ upload được giữ tại:
+---
 
-`<app_files_dir>/telemetry/voice_auth_pending.jsonl`
+## Huấn luyện lại mô hình
 
-Các trường chính gồm:
-- `timestampMs`
-- `spoofProbability`
-- `asvScore`
-- `decision`
-- `reason`
-- `asvSource`
-- `asvLatencyMs`
-- `modelName`
-- `recordingDurationSec`
+Xem [TRAINING_GUIDE.md](TRAINING_GUIDE.md) để biết cách:
+- Chuẩn bị dataset
+- Huấn luyện mô hình DNN
+- Xuất sang TFLite và cập nhật vào app
 
-Ứng dụng sẽ tự thử upload pending events tới endpoint telemetry suy ra từ ASV endpoint:
+---
 
-- nếu ASV endpoint là `/api/asv/score`
-- thì telemetry endpoint mặc định là `/api/telemetry/events`
+## Tài liệu kỹ thuật
 
-## Tích hợp model anti-spoof thật
-
-Đặt model tại:
-
-`app/src/main/assets/models/voice_spoof_detector.tflite`
-
-Yêu cầu input/output tham khảo ở:
-
-`app/src/main/assets/models/README.md`
-
-## Build và chạy
-
-```bash
-./gradlew testDebugUnitTest
-./gradlew assembleDebug
-```
-
-## Tài liệu triển khai
-
-- [INTEGRATION_GUIDE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/INTEGRATION_GUIDE.md)
-- [BACKEND_REFERENCE.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/docs/BACKEND_REFERENCE.md)
-- [backend/README.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/backend/README.md)
-
-## Dataset Capture trong app
-
-App hỗ trợ thu dataset ngay trên thiết bị:
-
-1. Chọn nhãn `BONAFIDE` hoặc `SPOOF` ở mục `Thu dataset`.
-2. Bấm `Start Recording`.
-3. Đọc câu kiểm thử.
-4. Bấm `Stop & Save`.
-
-Mẫu WAV được lưu tại:
-
-- `<app_files_dir>/dataset_samples/bonafide/*.wav`
-- `<app_files_dir>/dataset_samples/spoof/*.wav`
-
-## Training model từ dữ liệu đã thu
-
-Pipeline train tự động nằm ở:
-
-- [ml/README.md](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/ml/README.md)
-- [ml/train_spoof_model.py](/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/ml/train_spoof_model.py)
-
-Luồng cơ bản:
-
-1. Export dữ liệu từ thiết bị:
-`./scripts/export_dataset_from_device.sh`
-2. Train model trong `ml/`:
-`python train_spoof_model.py`
-3. Copy file `voice_spoof_detector.tflite` vào `app/src/main/assets/models/`.
+- [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) — Hướng dẫn tích hợp backend
+- [docs/BACKEND_REFERENCE.md](docs/BACKEND_REFERENCE.md) — API reference
+- [ml/README.md](ml/README.md) — Pipeline huấn luyện ML
