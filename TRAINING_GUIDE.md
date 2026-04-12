@@ -24,6 +24,21 @@ Android App (TFLiteSpoofDetectorEngine.kt)   ← inference on-device
 
 ---
 
+## Lưu ý về Dataset
+
+> **Dataset không được đẩy lên Git** do kích thước quá lớn (~42GB tổng).
+> App Android vẫn chạy bình thường — model TFLite đã được compile sẵn trong repo.
+> Chỉ cần tải dataset nếu muốn **huấn luyện lại** mô hình.
+
+| Thư mục | Nội dung | Kích thước | Nguồn |
+|---------|----------|------------|-------|
+| `resourse/mc_thu_hue_fix_char/` | Dataset spoof (TTS tiếng Việt) | ~11GB | Liên hệ tác giả |
+| `data/dataset_samples/bonafide/` | Dataset bonafide (VIVOS) | ~31GB | [ailab.hcmus.edu.vn/vivos](https://ailab.hcmus.edu.vn/vivos) |
+
+Sau khi tải về, đặt đúng cấu trúc thư mục rồi chạy `ml/prepare_dataset.py` (xem bên dưới).
+
+---
+
 ## Yêu cầu hệ thống
 
 | Thành phần | Yêu cầu |
