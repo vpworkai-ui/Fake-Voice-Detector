@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     onAsvEndpointChange = viewModel::updateAsvEndpoint,
                     onDatasetLabelChange = viewModel::updateDatasetLabel,
                     onDismissError = viewModel::dismissError,
+                    onExportCsv = { viewModel.exportSessionsToCsv(applicationContext) },
                     modifier = Modifier.fillMaxSize()
                 )
             }

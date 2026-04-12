@@ -26,5 +26,13 @@ data class DetectorUiState(
     val lastSavedSamplePath: String? = null,
     val isSavingSample: Boolean = false,
     val sessions: List<DetectionSession> = emptyList(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    // ── Hiệu năng thực tế ──────────────────────────────
+    val lastTotalPipelineMs: Long = 0L,
+    val lastInferenceMs: Long = 0L,
+    val lastFeatureMs: Long = 0L,
+    val lastRamMb: Float = 0f,
+    // ── Xuất CSV ───────────────────────────────────────
+    val lastExportPath: String? = null,
+    val isExporting: Boolean = false
 )

@@ -6,7 +6,9 @@ data class DetectionResult(
     val spoofProbability: Float,
     val threshold: Float = DEFAULT_THRESHOLD,
     val modelName: String,
-    val recordingDurationSec: Float
+    val recordingDurationSec: Float,
+    val featureExtractionMs: Long = 0L,
+    val inferenceMs: Long = 0L
 ) {
     val isSpoof: Boolean = spoofProbability >= threshold
     val confidence: Float = (abs(spoofProbability - threshold) * 2f).coerceIn(0f, 1f)

@@ -86,7 +86,10 @@ class VoiceDetectorViewModel(
         _uiState.update { it.copy(isRecording = false, isAnalyzing = true, errorMessage = null) }
 
         viewModelScope.launch(dispatchersProvider.io) {
+            val pipelineStart = System.currentTimeMillis()
             val result = analyzeVoiceSpoofingUseCase()
+            val pipelineMs = System.currentTimeMillis() - pipelineStart
+            val ramMb = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1_048_576f
             withContext(dispatchersProvider.main) {
                 result
                     .onSuccess { detection ->
@@ -126,7 +129,11 @@ class VoiceDetectorViewModel(
                                 lastAsvSource = asvResolution.source,
                                 lastAsvLatencyMs = asvResolution.latencyMs,
                                 sessions = (listOf(session) + it.sessions).take(MAX_SESSION_HISTORY),
-                                errorMessage = asvResolution.warning
+                                errorMessage = asvResolution.warning,
+                                lastTotalPipelineMs = pipelineMs,
+                                lastInferenceMs = patchedDetection.inferenceMs,
+                                lastFeatureMs = patchedDetection.featureExtractionMs,
+                                lastRamMb = ramMb
                             )
                         }
 
@@ -223,6 +230,50 @@ class VoiceDetectorViewModel(
 
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun exportSessionsToCsv(context: android.content.Context) {
+        val sessions = _uiState.value.sessions
+        if (sessions.isEmpty()) return
+
+        _uiState.update { it.copy(isExporting = true) }
+        viewModelScope.launch(dispatchersProvider.io) {
+            runCatching {
+                val dir = context.getExternalFilesDir(null) ?: context.filesDir
+                val ts  = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                    .format(java.util.Date())
+                val file = java.io.File(dir, "VoiceGuard_results_$ts.csv")
+
+                val header = "No,Thoi_gian,Quyet_dinh,Spoof_%,ASV_score,Tin_cay_%,Thoi_luong_s,Model,Pipeline_ms,Inference_ms"
+                val rows = sessions.reversed().mapIndexed { idx, s ->
+                    listOf(
+                        idx + 1,
+                        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                            .format(java.util.Date(s.createdAtEpochMs)),
+                        s.fusionDecision.decision.name,
+                        "%.1f".format(s.detectionResult.spoofProbability * 100),
+                        "%.3f".format(s.fusionDecision.asvScore),
+                        "%.1f".format(s.detectionResult.confidence * 100),
+                        "%.2f".format(s.detectionResult.recordingDurationSec),
+                        s.detectionResult.modelName,
+                        s.detectionResult.inferenceMs + s.detectionResult.featureExtractionMs,
+                        s.detectionResult.inferenceMs
+                    ).joinToString(",")
+                }
+                file.writeText((listOf(header) + rows).joinToString("\n"), Charsets.UTF_8)
+                file.absolutePath
+            }.onSuccess { path ->
+                withContext(dispatchersProvider.main) {
+                    _uiState.update { it.copy(isExporting = false, lastExportPath = path) }
+                }
+            }.onFailure { err ->
+                withContext(dispatchersProvider.main) {
+                    _uiState.update {
+                        it.copy(isExporting = false, errorMessage = "Xuất CSV thất bại: ${err.message}")
+                    }
+                }
+            }
+        }
     }
 
     private fun observeConfig() {

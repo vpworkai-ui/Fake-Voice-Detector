@@ -1,6 +1,8 @@
 package com.vpsaker.fake_voice_detector.data.detection
 
 import android.content.Context
+import android.os.Build
+import android.util.Log
 import com.vpsaker.fake_voice_detector.data.audio.AudioRecorder
 import com.vpsaker.fake_voice_detector.domain.model.DetectionResult
 import com.vpsaker.fake_voice_detector.domain.repository.VoiceSpoofingRepository
@@ -31,14 +33,25 @@ class VoiceSpoofingRepositoryImpl(
         }
 
         return runCatching {
+            val t0 = System.nanoTime()
             val features = featureExtractor.extractFeatures(audio, sampleRateHz)
+            val featureMs = (System.nanoTime() - t0) / 1_000_000L
+
             validateAudioQuality(features)
             validateSpeechPresence(audio)
+
+            val t1 = System.nanoTime()
             val spoofProbability = detectorEngine.detectSpoofProbability(features)
+            val inferenceMs = (System.nanoTime() - t1) / 1_000_000L
+
+            Log.i(TAG, "Pipeline | Feature extraction: ${featureMs}ms | TFLite inference: ${inferenceMs}ms")
+
             DetectionResult(
-                spoofProbability = spoofProbability,
-                modelName = detectorEngine.modelName,
-                recordingDurationSec = audio.size.toFloat() / sampleRateHz.toFloat()
+                spoofProbability     = spoofProbability,
+                modelName            = detectorEngine.modelName,
+                recordingDurationSec = audio.size.toFloat() / sampleRateHz.toFloat(),
+                featureExtractionMs  = featureMs,
+                inferenceMs          = inferenceMs
             )
         }
     }
@@ -78,6 +91,11 @@ class VoiceSpoofingRepositoryImpl(
         if (durationSec > MAX_DURATION_SEC) {
             throw IllegalStateException("Audio too long. Keep recording under ${MAX_DURATION_SEC.toInt()} seconds.")
         }
+        // Skip volume/speech checks on emulator — mic gain is unreliable on virtual devices
+        if (isEmulator()) {
+            Log.d(TAG, "Emulator detected — skipping volume validation (rms=$rms)")
+            return
+        }
         if (rms < MIN_RMS) {
             throw IllegalStateException("Input volume is too low. Move closer to microphone and retry.")
         }
@@ -87,6 +105,9 @@ class VoiceSpoofingRepositoryImpl(
     }
 
     private fun validateSpeechPresence(audio: ShortArray) {
+        // Skip VAD on emulator — audio from virtual mic is unreliable
+        if (isEmulator()) return
+
         val frameSize = (sampleRateHz * FRAME_SEC).toInt().coerceAtLeast(1)
         val hopSize = (sampleRateHz * HOP_SEC).toInt().coerceAtLeast(1)
         if (audio.size < frameSize) {
@@ -118,6 +139,16 @@ class VoiceSpoofingRepositoryImpl(
             throw IllegalStateException("No speech detected. Please speak clearly and retry.")
         }
     }
+
+    private fun isEmulator(): Boolean =
+        Build.FINGERPRINT.startsWith("generic") ||
+        Build.FINGERPRINT.startsWith("unknown") ||
+        Build.MODEL.contains("Emulator", ignoreCase = true) ||
+        Build.MODEL.contains("Android SDK built for", ignoreCase = true) ||
+        Build.MANUFACTURER.contains("Genymotion", ignoreCase = true) ||
+        Build.BRAND.startsWith("generic") ||
+        Build.DEVICE.startsWith("generic") ||
+        Build.PRODUCT.startsWith("sdk")
 
     private fun normalizeLabel(label: String): String {
         val clean = label.trim().lowercase()
@@ -161,13 +192,14 @@ class VoiceSpoofingRepositoryImpl(
         const val SAMPLE_RATE_HZ = 16_000
         private const val MIN_DURATION_SEC = 1.0f
         private const val MAX_DURATION_SEC = 15.0f
-        private const val MIN_RMS = 0.01f
+        private const val MIN_RMS = 0.001f
         private const val MAX_CLIPPING_RATIO = 0.35f
         private const val FRAME_SEC = 0.020f
         private const val HOP_SEC = 0.010f
-        private const val SPEECH_ENERGY_MIN = 0.015f
-        private const val DYNAMIC_NOISE_MULTIPLIER = 2.5f
-        private const val MIN_VOICED_FRAMES = 5
-        private const val MIN_VOICED_RATIO = 0.20f
+        private const val SPEECH_ENERGY_MIN = 0.005f
+        private const val DYNAMIC_NOISE_MULTIPLIER = 1.5f
+        private const val MIN_VOICED_FRAMES = 3
+        private const val MIN_VOICED_RATIO = 0.10f
+        private const val TAG = "VoicePipeline"
     }
 }

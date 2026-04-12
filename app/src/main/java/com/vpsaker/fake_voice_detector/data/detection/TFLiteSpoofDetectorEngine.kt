@@ -1,6 +1,7 @@
 package com.vpsaker.fake_voice_detector.data.detection
 
 import android.content.Context
+import android.util.Log
 import org.tensorflow.lite.Interpreter
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
@@ -39,7 +40,11 @@ class TFLiteSpoofDetectorEngine(
 
             val outputSize = tflite.getOutputTensor(0).shape().last().coerceAtLeast(1)
             val output = Array(1) { FloatArray(outputSize) }
+
+            val inferenceStart = System.nanoTime()
             tflite.run(arrayOf(inputVector), output)
+            val inferenceMs = (System.nanoTime() - inferenceStart) / 1_000_000.0
+            Log.i(TAG, "TFLite inference: %.3f ms | features: ${features.toList()}".format(inferenceMs))
 
             decodeOutput(output[0]).coerceIn(0f, 1f)
         }.getOrElse {
@@ -103,5 +108,6 @@ class TFLiteSpoofDetectorEngine(
 
     companion object {
         private const val DEFAULT_MODEL_PATH = "models/voice_spoof_detector.tflite"
+        private const val TAG = "TFLiteSpoofEngine"
     }
 }
