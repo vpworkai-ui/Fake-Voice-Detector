@@ -23,7 +23,19 @@ backend/app/__pycache__/
 # ML training
 ml/.venv/
 ml/artifacts/
-
 ml/__pycache__/
+ml/charts/
 
-ml/__pycache__/
+# Dataset & audio resources (large binary files — root level only)
+/resourse/
+/data/
+
+# Generated documents
+*.docx
+~$*.docx
+
+# Generated / temporary
+*.wav
+*.mp3
+*.pyc
+__pycache__/
