@@ -116,12 +116,12 @@ Hoặc cấu hình trực tiếp trong Tab Cài đặt của app.
 
 | CM (on-device) | ASV score | Quyết định |
 |----------------|-----------|-----------|
-| BONAFIDE | ≥ 0.70 | **ALLOW** |
-| BONAFIDE | 0.50 – 0.70 | **REVIEW** |
-| BONAFIDE | < 0.50 | **BLOCK** |
 | SPOOF | bất kỳ | **BLOCK** |
+| BONAFIDE | ≥ 0.75 | **ALLOW** |
+| BONAFIDE | 0.67 – 0.75 và spoof risk rất thấp | **REVIEW** |
+| BONAFIDE | < 0.75 (các trường hợp còn lại) | **BLOCK** |
 
-*(Ngưỡng có thể điều chỉnh trong Tab Cài đặt)*
+> Ngưỡng mặc định: `spoofThreshold = 0.50`, `asvThreshold = 0.75`. Có thể điều chỉnh trong **Tab Cài đặt**.
 
 ---
 

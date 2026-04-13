@@ -198,15 +198,44 @@ ml/artifacts/
   report.json                  ← Kết quả đánh giá (Accuracy, F1, ...)
 ```
 
-**Ví dụ kết quả `report.json`:**
+**Kết quả thực tế trên dataset VIVOS + mc_thu_hue (24.840 mẫu):**
 
 ```json
 {
-  "val":  { "accuracy": 0.92, "precision": 0.91, "recall": 0.93, "f1": 0.92, "count": 512 },
-  "test": { "accuracy": 0.91, "precision": 0.90, "recall": 0.92, "f1": 0.91, "count": 640 },
-  "dataset": { "total": 3200, "bonafide": 1600, "spoof": 1600, "failed_files": [] }
+  "val":  { "accuracy": 0.9839, "precision": 0.9810, "recall": 0.9869, "f1": 0.9839, "count": 3975 },
+  "test": { "accuracy": 0.9823, "precision": 0.9807, "recall": 0.9839, "f1": 0.9823, "count": 4968 },
+  "dataset": { "total": 24840, "bonafide": 12420, "spoof": 12420, "failed_files": [] }
 }
 ```
+
+---
+
+## Bước 3.5 — Sinh biểu đồ đánh giá (ROC, AUC, EER, Confusion Matrix)
+
+Sau khi train xong, chạy thêm script này để sinh biểu đồ luận văn và tính AUC/EER:
+
+```bash
+cd /path/to/fake_voice_detector
+source ml/.venv/bin/activate
+
+python ml/generate_charts.py
+```
+
+**Output (`ml/charts/`):**
+
+| File | Nội dung |
+|------|----------|
+| `training_curves.png` | Loss & Accuracy theo từng epoch |
+| `confusion_matrix.png` | Ma trận nhầm lẫn trên test set |
+| `roc_curve.png` | ROC Curve + **AUC** + **EER** |
+| `pr_curve.png` | Precision-Recall Curve |
+| `feature_distributions.png` | Phân phối 8 đặc trưng: Bonafide vs Spoof |
+| `metrics_summary.png` | Bảng tổng hợp chỉ số |
+
+> **Ghi chú:** AUC và EER chỉ được tính ở bước này (không có trong `report.json`).  
+> Kết quả trên dataset 24.840 mẫu: **AUC = 0.9974**, **EER = 1.93%**.
+
+Script yêu cầu `ml/artifacts/` và `data/dataset_samples/` đã tồn tại (chạy sau bước 2 và 3).
 
 ---
 

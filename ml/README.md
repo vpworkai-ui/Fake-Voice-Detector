@@ -1,59 +1,96 @@
-# Training Pipeline (from in-app captured files)
+# ML Training Pipeline
 
-Pipeline này train model anti-spoof từ dữ liệu bạn thu trong app (`bonafide/spoof`) rồi export `.tflite` để dùng lại trong Android app.
+Thư mục này chứa toàn bộ pipeline huấn luyện mô hình anti-spoof.
 
-## 1) Export dữ liệu từ app (debug)
+> **Hướng dẫn đầy đủ**: xem [TRAINING_GUIDE.md](../TRAINING_GUIDE.md) ở thư mục gốc.
 
-```bash
-cd /Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector
-./scripts/export_dataset_from_device.sh com.vpsaker.fake_voice_detector ./data
+## Cấu trúc thư mục
+
+```
+ml/
+  prepare_dataset.py       ← Chuẩn bị dataset (Kaggle / custom / demo)
+  train_spoof_model.py     ← Trích xuất features + train DNN → export .tflite
+  generate_charts.py       ← Sinh biểu đồ đánh giá (ROC, AUC, EER, Confusion Matrix)
+  generate_thesis_figures.py ← Sinh hình minh hoạ kiến trúc cho luận văn
+  requirements.txt         ← Thư viện Python (numpy, scikit-learn, tensorflow)
+  artifacts/               ← Output sau khi train (bị .gitignore, không đẩy lên Git)
+  charts/                  ← Output biểu đồ (bị .gitignore)
 ```
 
-Sau lệnh này bạn sẽ có:
-
-- `./data/dataset_samples/bonafide/*.wav`
-- `./data/dataset_samples/spoof/*.wav`
-
-## 2) Cài môi trường training
+## Cài môi trường
 
 ```bash
-cd /Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/ml
-python3.13 -m venv .venv
+cd /path/to/fake_voice_detector/ml
+/opt/homebrew/bin/python3.13 -m venv .venv   # macOS — dùng Python 3.13 từ Homebrew
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 3) Train model
+## Luồng huấn luyện nhanh
 
+### 1) Chuẩn bị dataset
+
+**Kaggle "The Fake or Real Dataset" (khuyến nghị):**
 ```bash
-python train_spoof_model.py \
-  --dataset-root ../data/dataset_samples \
-  --output-dir ./artifacts \
-  --epochs 30
+python ml/prepare_dataset.py \
+  --mode kaggle \
+  --source ~/Downloads/for-norm \
+  --output data/dataset_samples \
+  --limit 2000
 ```
 
-Output:
+**Dữ liệu tự thu từ app Android:**
+```bash
+# Kéo file từ thiết bị trước
+./scripts/export_dataset_from_device.sh com.vpsaker.fake_voice_detector ./data
 
-- `artifacts/voice_spoof_detector.keras`
-- `artifacts/voice_spoof_detector.tflite`
-- `artifacts/feature_stats.npy`
-- `artifacts/report.json`
+# Chuẩn bị
+python ml/prepare_dataset.py \
+  --mode custom \
+  --bonafide-src data/device_dataset/bonafide \
+  --spoof-src    data/device_dataset/spoof \
+  --output       data/dataset_samples
+```
 
-## 4) Đưa model vào app
+**Demo (chỉ kiểm thử pipeline, không có giá trị thực tế):**
+```bash
+python ml/prepare_dataset.py \
+  --mode demo \
+  --spoof-src resourse/mc_thu_hue_fix_char/wavs \
+  --output data/dataset_samples
+```
 
-Copy file `.tflite` sang:
-
-`/Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector/app/src/main/assets/models/voice_spoof_detector.tflite`
-
-Build lại app:
+### 2) Train model
 
 ```bash
-cd /Users/phucit/Desktop/Work/KMP/Repos/fake_voice_detector
-./gradlew assembleDebug
+python ml/train_spoof_model.py \
+  --dataset-root data/dataset_samples \
+  --output-dir   ml/artifacts \
+  --epochs       30 \
+  --batch-size   32 \
+  --seed         42
+```
+
+Output: `ml/artifacts/voice_spoof_detector.tflite` (cần cho app Android)
+
+### 3) Sinh biểu đồ đánh giá (AUC, EER, ROC…)
+
+```bash
+python ml/generate_charts.py
+```
+
+Output: `ml/charts/roc_curve.png`, `confusion_matrix.png`, `training_curves.png`, v.v.
+
+### 4) Copy model vào app
+
+```bash
+cp ml/artifacts/voice_spoof_detector.tflite \
+   app/src/main/assets/models/voice_spoof_detector.tflite
 ```
 
 ## Ghi chú
 
-- Script train dùng đúng feature order như app Android.
-- Nên có tối thiểu 100 mẫu mỗi lớp cho kết quả ổn định hơn.
-- Khi training nghiêm túc, nên tách dữ liệu theo speaker/session để tránh leakage.
+- Feature order phải khớp giữa Python (`extract_features()`) và Kotlin (`AudioFeatureExtractor.kt`):
+  `rms → meanAbs → zcr → peak → crestFactor → clippingRatio → dynamicRange → durationSec`
+- `artifacts/` và `charts/` không được đẩy lên Git (xem `.gitignore`)
+- Cần tối thiểu ~200 file/lớp; khuyến nghị 1000+ file/lớp cho kết quả tốt
