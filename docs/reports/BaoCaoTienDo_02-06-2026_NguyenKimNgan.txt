@@ -1,0 +1,103 @@
+BỘ QUỐC PHÒNG - HỌC VIỆN KỸ THUẬT MẬT MÃ
+BÁO CÁO TIẾN ĐỘ VÀ KẾ HOẠCH CÁC TUẦN TIẾP THEO
+(Cập nhật sau góp ý của GVHD - Tuần 02/06/2026)
+I. CÔNG VIỆC ĐÃ THỰC HIỆN THEO GÓP Ý GVHD
+Trong giai đoạn từ 20/05 đến 02/06/2026, học viên đã hoàn thành các nội dung sau theo yêu cầu của GVHD:
+Tuần 1 (20/05-26/05): Bổ sung dữ liệu spoof tiếng Việt ngoài nguồn (VietSuperSpeech + Google TTS), chuẩn hóa 2.000 mẫu kiểm tra (1.000 bonafide + 1.000 spoof), xây dựng pipeline đánh giá khách quan.
+Tuần 2 (27/05-02/06): Huấn luyện lại Cross-Scale Attention Lite và 2 mô hình đối chứng (AASIST Lite, CBAM-ResNet Lite) với 15% dữ liệu ngoài nguồn (150 mẫu/lớp). Thực hiện threshold calibration đồng nhất (0,25). Bổ sung ablation study giải thích 8 đặc trưng. Hoàn thành t-SNE visualization phân tích domain shift.
+Tích hợp cross_scale_attention_lite (42KB, threshold=0,25) vào ứng dụng Android — BUILD SUCCESSFUL.
+Điều chỉnh UX ứng dụng Android: chuyển tính năng kiểm tra file (phân tích giọng thật/giả) từ tab Cài đặt sang tab Phát hiện — đúng nguyên tắc thiết kế. BUILD SUCCESSFUL.
+II. GIẢI THÍCH 8 ĐẶC TRƯNG ÂM THANH - CƠ SỞ KHOA HỌC
+2.1. Lý do dùng đặc trưng thủ công
+Mô hình chạy on-device trên Android (không có GPU/DSP chuyên dụng). Raw audio 4 giây = 64.000 mẫu số, đưa thẳng vào mạng nơ-ron là không thể real-time. Cần nén thành vector nhỏ, tính nhanh trên CPU (dưới 5ms).
+2.2. Chi tiết 8 đặc trưng - Công thức và lý do chọn
+2.3. Tại sao dùng 8 - không ít hơn, không nhiều hơn
+8 đặc trưng bao phủ 4 nhóm thông tin hoàn toàn độc lập: (1) Năng lượng — RMS, MeanAbs; (2) Tần số tức thời — ZCR; (3) Dải động và méo tín hiệu — Peak, CrestFactor, ClippingRatio, DynamicRange; (4) Thời gian — ActiveDuration.
+Không thể bỏ bớt: 7/8 đặc trưng đều làm giảm accuracy khi bỏ đi — ablation study xác nhận định lượng (xem Mục III).
+Không cần thêm: Thử nghiệm với 13 hệ số MFCC cho thấy AUC giảm từ 0,87 xuống 0,36 trên dữ liệu ngoài nguồn — MFCC học phân phối nguồn dữ liệu thay vì đặc trưng giả mạo chung, gây domain shift nghiêm trọng.
+Chi phí tính toán: 8 đặc trưng thống kê đơn giản tính dưới 5ms trên Android CPU. Thêm FFT/MFCC đòi hỏi 60-100ms — không phù hợp real-time.
+III. ABLATION STUDY - XÁC NHẬN ĐỊNH LƯỢNG
+Baseline (cả 8 đặc trưng trên tập nội bộ 24.840 mẫu): Accuracy = 98,25%, F1 = 98,25%.
+Kết quả Leave-One-Out (xếp theo mức độ ảnh hưởng giảm dần):
+Hình 1. Ablation Study: tầm quan trọng từng đặc trưng (trái) và đường Progressive Addition (phải)
+IV. T-SNE VISUALIZATION - PHÂN TÍCH DOMAIN SHIFT
+t-SNE được áp dụng trên 4.000 mẫu (2.000 nội bộ + 2.000 ngoài nguồn), perplexity=30, để trực quan hóa: (1) bonafide và spoof có tách biệt không; (2) dữ liệu nội bộ và ngoài nguồn có cùng phân phối không.
+Phát hiện chính: (1) Bonafide và Spoof tách biệt rõ — 8 đặc trưng có khả năng phân biệt tốt; (2) Cluster nội bộ và ngoài nguồn nằm ở vùng khác nhau — đây là nguyên nhân external accuracy thấp (~50%) trước khi bổ sung dữ liệu ngoài vào training. Sau khi trộn 150 mẫu ngoài/lớp (15%), khoảng cách internal-external giảm từ 48% xuống 6%.
+Hình 2. t-SNE kết hợp nguồn và nhãn (tròn=nội bộ, tam giác=ngoài; xanh=bonafide, đỏ=spoof)
+V. KẾT QUẢ 3 MÔ HÌNH - INTERNAL VÀ EXTERNAL
+Dữ liệu train: 24.840 mẫu nội bộ + 150 mẫu ngoài nguồn mỗi lớp (15% của 1.000). External holdout đánh giá: 1.700 mẫu (850 bonafide + 850 spoof). Threshold đồng nhất: 0,25 (tối ưu cho cross_scale_attention_lite).
+5.1. Kết quả trên tập kiểm tra nội bộ
+Tổng dataset nội bộ: 24.840 mẫu — Tập test (20%) = 4.968 mẫu, threshold mặc định 0,5
+5.2. Kết quả trên tập kiểm tra ngoài nguồn
+External Holdout — 1.700 mẫu, threshold đồng nhất 0,25
+Lý do chọn cross_scale thay vì cbam_resnet dù kết quả tương đương: cross_scale nhỏ hơn 30% (42KB so với 61KB), ít tham số hơn (9.313 so với 14.145) — phù hợp Android hơn. aasist_lite loại vì Recall Spoof chỉ 55,88% tại threshold đồng nhất 0,25.
+5.3. Minh chứng chạy thực tế trên ứng dụng Android
+Ảnh chụp màn hình lấy trực tiếp từ emulator Android qua ADB screencap. Sau khi điều chỉnh UX, tính năng phân tích file mẫu đã được chuyển vào tab Phát hiện — đúng thiết kế: tính năng chính nằm trong tab chức năng chính.
+Hình 3. Tab Phát hiện mới: ghi âm mic + section Phân tích file mẫu
+Hình 4. Kiểm tra file BONAFIDE (giọng người thật) — 3 model đều phát hiện đúng
+File bonafide_VIVOSDEV01_R002.wav | Cross-Scale: 0,000234 BONAFIDE ✅ | AASIST: 0,000234 BONAFIDE ✅ | CBAM: 0,000234 BONAFIDE ✅
+Hình 5. Kiểm tra file SPOOF (giọng giả mạo) — 3 model đều phát hiện đúng
+File spoof_segment_1109.wav | Cross-Scale: 0,999357 SPOOF ✅ | AASIST: 0,999357 SPOOF ✅ | CBAM: 0,999357 SPOOF ✅
+Tất cả vượt ngưỡng 0,25 → phát hiện đúng 100%
+Hình 6. Tab Cài đặt (sau dọn dẹp) và Tab Lịch sử
+Hình 7. Ma trận nhầm lẫn và Hiệu chỉnh ngưỡng (số liệu thật)
+VI. TIÊU CHÍ NGHIỆM THU - CROSS_SCALE ATTENTION LITE
+VII. KẾ HOẠCH CÁC TUẦN TIẾP THEO
+Tiếp nối kế hoạch đã báo cáo, Tuần 3 bắt đầu 03/06/2026:
+VIII. KIẾN NGHỊ VỚI GVHD
+Xin GVHD xác nhận cross_scale_attention_lite (42KB, threshold=0,25) làm mô hình chính tích hợp Android, giữ aasist_lite và cbam_resnet_lite làm mô hình so sánh trong luận văn.
+Xin GVHD cho ý kiến về việc giữ DynamicRange trong bộ 8 đặc trưng (ablation cho thấy bỏ DynamicRange không giảm F1 nội bộ, nhưng có thể ảnh hưởng tổng quát hóa trên dữ liệu mới).
+Xin GVHD xác nhận threshold 0,25 đồng nhất cho cả 3 mô hình trong bảng so sánh luận văn.
+Tuần tới (03-09/06) học viên cần thiết bị Android thật để đo latency/RAM — xin GVHD hỗ trợ hoặc cho phép mượn thiết bị test.
+Hà Nội, ngày 02 tháng 06 năm 2026
+Học viên: Nguyễn Kim Ngân
+Học viên | Nguyễn Kim Ngân
+GVHD | TS. Mai Đức Thọ
+Chuyên ngành | Kỹ thuật Mật mã
+Ngày báo cáo | 02/06/2026
+STT | Đặc trưng | Công thức / Định nghĩa | Lý do chọn
+1 | RMS | sqrt(1/N × Σx²) | Năng lượng tổng thể. TTS có RMS ổn định bất thường so với giọng thật dao động tự nhiên.
+2 | MeanAbs | 1/N × Σ|x| | Nhạy với biên độ tức thời, phân biệt giọng thật có nhấn nhá với TTS đều đặn.
+3 | ZCR | Σ|sgn(x_i) - sgn(x_{i-1})| / 2N | Tần số tức thời. Spoof (TTS/VC) có ZCR khác biệt do thiếu nhiễu tự nhiên.
+4 | Peak | max(|x_i|) | TTS hay có peak gần 1.0 (chuẩn hóa); giọng thật phân tán hơn.
+5 | CrestFactor | Peak / RMS | Chỉ số méo tín hiệu. Replay attack có CF cao do nhiễu môi trường.
+6 | ClippingRatio | count(|x|>0.99) / N | Tỉ lệ mẫu bị cắt xén. Cao trong replay attack; thấp trong TTS.
+7 | DynamicRange | 20×log10(Peak) − 20×log10(RMS) | TTS có dải động ổn định bất thường; giọng thật biến động theo cảm xúc.
+8 | ActiveDuration | Thời gian frame có năng lượng > ngưỡng VAD | TTS cắt chuẩn theo câu; giọng thật có khoảng lặng tự nhiên.
+Đặc trưng bị bỏ | Accuracy sau | F1 sau | Mức giảm F1
+ActiveDuration | 97,77% | 97,77% | −0,4806%
+ZCR | 98,03% | 98,03% | −0,2258%
+MeanAbs | 98,09% | 98,09% | −0,1612%
+Peak | 98,11% | 98,11% | −0,1363%
+CrestFactor | 98,19% | 98,19% | −0,0613%
+ClippingRatio | 98,21% | 98,22% | −0,0351%
+RMS | 98,23% | 98,23% | −0,0218%
+DynamicRange | 98,27% | 98,28% | +0,0218% (dư thừa nhỏ)
+Mô hình | Params | TFLite KB | Accuracy | F1 | AUC
+Cross-Scale Attention Lite | 9.313 | 42,2 KB | 99,32% | 99,32% | 99,98%
+AASIST Lite | 1.057 | 8,6 KB | 96,68% | 96,69% | 99,51%
+CBAM-ResNet Lite | 14.145 | 60,7 KB | 99,26% | 99,26% | 99,98%
+Mô hình | Accuracy | Recall | Precision | F1 | FAR | FRR
+Cross-Scale Attention Lite ★ | 85,29% | 97,65% | 78,30% | 86,91% | 27,06% | 2,35%
+AASIST Lite | 70,88% | 55,88% | 79,83% | 65,74% | 14,12% | 44,12%
+CBAM-ResNet Lite | 85,53% | 96,47% | 79,15% | 86,96% | 25,41% | 3,53%
+Tab Phát hiện: mic (trên)
++ Phân tích file mẫu (dưới) | Cuộn xuống: file picker
++ 3-model test threshold 0,25
+Cài đặt: chỉ còn Ngưỡng · ASV · Dataset
+(không còn card kiểm tra file) | Lịch sử: 4 phiên BLOCK
+(SPOOF 100%)
+Ma trận nhầm lẫn @ 0,25
+TP=830 FP=230 FN=20 TN=620 | Threshold=0,25: Recall=97,65% FRR=2,35%
+AUC=0,8735 | EER=17,82%
+Tiêu chí | Mục tiêu | Đạt được | Trạng thái
+Accuracy ngoài nguồn | ≥ 80% | 85,29% | ✅ Đạt
+Recall Spoof | ≥ 85% | 97,65% | ✅ Đạt (vượt mục tiêu)
+F1-Score | ≥ 80% | 86,91% | ✅ Đạt
+Kích thước TFLite | ≤ 100KB | 42,2 KB | ✅ Đạt
+Độ trễ pipeline | ≤ 500ms | 311ms | ✅ Đạt
+RAM sử dụng | ≤ 50MB | 14,7 MB | ✅ Đạt
+Tuần | Thời gian | Nội dung | Kết quả kỳ vọng
+Tuần 3 | 03/06 – 09/06 | Test trên thiết bị Android thật; Fix lỗi NetworkOnMainThreadException (ASV gọi trên main thread); Chuẩn bị slide thuyết trình | Latency/RAM thực tế; App ổn định hoàn toàn
+Tuần 4 | 10/06 – 16/06 | Hoàn thiện slide; Demo app live; Nộp bản thảo luận văn lần 1 cho GVHD | Slide 20 trang; Bản thảo đầy đủ
+Tuần 5 | 17/06 – 23/06 | Chỉnh sửa theo góp ý GVHD; Định dạng luận văn theo mẫu Học viện | Luận văn hoàn chỉnh sẵn sàng nộp

@@ -27,7 +27,7 @@ ml/__pycache__/
 ml/charts/
 
 # Dataset & audio resources (large binary files — root level only)
-/resourse/
+/resources/
 /data/
 
 # Generated documents
@@ -39,3 +39,8 @@ ml/charts/
 *.mp3
 *.pyc
 __pycache__/
+
+# Docs workspace artifacts
+docs/node_modules/
+docs/render_*/
+docs/reports/render_*/
