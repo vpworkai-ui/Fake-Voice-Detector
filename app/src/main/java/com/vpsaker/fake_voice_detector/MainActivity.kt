@@ -1,9 +1,13 @@
 package com.vpsaker.fake_voice_detector
 
 import android.Manifest
+import android.content.ContentResolver
+import android.database.Cursor
+import android.net.Uri
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -19,10 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vpsaker.fake_voice_detector.data.audio.MicrophoneAudioRecorder
-import com.vpsaker.fake_voice_detector.data.asv.HttpAsvScoreRepository
 import com.vpsaker.fake_voice_detector.data.detection.AudioFeatureExtractor
 import com.vpsaker.fake_voice_detector.data.detection.TFLiteSpoofDetectorEngine
 import com.vpsaker.fake_voice_detector.data.detection.VoiceSpoofingRepositoryImpl
+import com.vpsaker.fake_voice_detector.data.history.FileSessionHistoryStore
 import com.vpsaker.fake_voice_detector.data.settings.SecurityConfigDataStoreRepository
 import com.vpsaker.fake_voice_detector.data.telemetry.FileTelemetryRepository
 import com.vpsaker.fake_voice_detector.presentation.VoiceDetectorScreen
@@ -35,37 +39,25 @@ class MainActivity : ComponentActivity() {
     private val isDebugBuild: Boolean
         get() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
-    private fun hasConfiguredAsvEndpoint(endpoint: String): Boolean {
-        val normalized = endpoint.trim().lowercase()
-        if (normalized.isBlank()) return false
-        if (normalized.contains("example.com")) return false
-        return normalized.startsWith("http://") || normalized.startsWith("https://")
-    }
-
     private val viewModel: VoiceDetectorViewModel by viewModels {
         VoiceDetectorViewModelFactory(
             repository = VoiceSpoofingRepositoryImpl(
                 recorder = MicrophoneAudioRecorder(),
                 featureExtractor = AudioFeatureExtractor(),
                 detectorEngine = TFLiteSpoofDetectorEngine(
-                    context = applicationContext,
-                    allowHeuristicFallback = isDebugBuild
+                    context = applicationContext
                 ),
                 context = applicationContext
             ),
             securityConfigRepository = SecurityConfigDataStoreRepository(
-                context = applicationContext,
-                defaultUseRemoteAsv = if (isDebugBuild) {
-                    hasConfiguredAsvEndpoint(BuildConfig.ASV_ENDPOINT_DEFAULT)
-                } else {
-                    true
-                },
-                defaultAsvEndpoint = BuildConfig.ASV_ENDPOINT_DEFAULT
+                context = applicationContext
             ),
-            asvScoreRepository = HttpAsvScoreRepository(apiKey = BuildConfig.ASV_API_KEY),
             telemetryRepository = FileTelemetryRepository(
                 context = applicationContext,
                 apiKey = BuildConfig.TELEMETRY_API_KEY
+            ),
+            sessionHistoryStore = FileSessionHistoryStore(
+                context = applicationContext
             ),
             strictReleaseMode = !isDebugBuild,
             telemetryEndpointOverride = BuildConfig.TELEMETRY_ENDPOINT_DEFAULT
@@ -93,6 +85,27 @@ class MainActivity : ComponentActivity() {
                     hasAudioPermission = isGranted
                 }
 
+                val audioPickerLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    uri ?: return@rememberLauncherForActivityResult
+                    runCatching {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
+                    val fileBytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    if (fileBytes == null) {
+                        viewModel.showError("Khong the doc file audio da chon. Vui long thu lai voi file WAV hop le.")
+                    } else {
+                        viewModel.analyzeImportedAudio(
+                            fileName = resolveDisplayName(contentResolver, uri),
+                            data = fileBytes
+                        )
+                    }
+                }
+
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
                 VoiceDetectorScreen(
@@ -104,17 +117,31 @@ class MainActivity : ComponentActivity() {
                     onStartRecording = viewModel::startRecording,
                     onStopRecording = viewModel::stopAndAnalyze,
                     onStopAndSaveSample = viewModel::stopAndSaveSample,
-                    onAsvScoreInputChange = viewModel::updateAsvScoreInput,
+                    onPickAudioFile = {
+                        audioPickerLauncher.launch(arrayOf("audio/wav", "audio/x-wav", "audio/*"))
+                    },
                     onSpoofThresholdChange = viewModel::updateSpoofThreshold,
-                    onAsvThresholdChange = viewModel::updateAsvThreshold,
-                    onUseRemoteAsvChange = viewModel::updateUseRemoteAsv,
-                    onAsvEndpointChange = viewModel::updateAsvEndpoint,
                     onDatasetLabelChange = viewModel::updateDatasetLabel,
                     onDismissError = viewModel::dismissError,
+                    onDeleteSession = viewModel::deleteSession,
                     onExportCsv = { viewModel.exportSessionsToCsv(applicationContext) },
                     modifier = Modifier.fillMaxSize()
                 )
             }
         }
+    }
+
+    private fun resolveDisplayName(contentResolver: ContentResolver, uri: Uri): String {
+        val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+        val cursor: Cursor? = contentResolver.query(uri, projection, null, null, null)
+        cursor.use { c ->
+            if (c != null && c.moveToFirst()) {
+                val columnIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (columnIndex >= 0) {
+                    return c.getString(columnIndex) ?: "selected_audio.wav"
+                }
+            }
+        }
+        return uri.lastPathSegment ?: "selected_audio.wav"
     }
 }

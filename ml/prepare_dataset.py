@@ -14,7 +14,7 @@ Cách dùng:
   python prepare_dataset.py --mode kaggle --source /path/to/for-norm --output data/dataset_samples
 
   # Chế độ demo (không cần data thật)
-  python prepare_dataset.py --mode demo --spoof-source resourse/mc_thu_hue_fix_char/wavs --output data/dataset_samples
+  python prepare_dataset.py --mode demo --spoof-source resources/mc_thu_hue_fix_char/wavs --output data/dataset_samples
 """
 from __future__ import annotations
 
@@ -229,7 +229,7 @@ def main() -> None:
         spoof_src = args.spoof_src
         if not spoof_src:
             # Dùng mc_thu_hue_fix_char mặc định
-            spoof_src = Path("resourse/mc_thu_hue_fix_char/wavs")
+            spoof_src = Path("resources/mc_thu_hue_fix_char/wavs")
         if not spoof_src.exists():
             parser.error(f"Không tìm thấy thư mục spoof source: {spoof_src}")
         prepare_demo(spoof_src, args.output, args.demo_n_spoof, args.demo_n_bonafide, args.sr)

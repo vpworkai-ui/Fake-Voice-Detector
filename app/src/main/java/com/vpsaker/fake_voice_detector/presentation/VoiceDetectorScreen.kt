@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +39,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -69,7 +72,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -90,6 +92,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vpsaker.fake_voice_detector.domain.model.AuthenticationDecision
@@ -122,6 +125,9 @@ private val OnSurface = Color(0xFF0D2137)
 private val OnSurfaceMid = Color(0xFF4A6572)
 private val OnSurfaceLow = Color(0xFF8FA8B4)
 
+private val HelpIconButtonSize = 40.dp
+private val HelpIconSize = 20.dp
+
 private val detectGradient = Brush.verticalGradient(
     listOf(Navy900, Navy800, Navy700, Navy600, Color(0xFF1A4570))
 )
@@ -135,13 +141,11 @@ fun VoiceDetectorScreen(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onStopAndSaveSample: () -> Unit,
-    onAsvScoreInputChange: (String) -> Unit,
+    onPickAudioFile: () -> Unit,
     onSpoofThresholdChange: (Float) -> Unit,
-    onAsvThresholdChange: (Float) -> Unit,
-    onUseRemoteAsvChange: (Boolean) -> Unit,
-    onAsvEndpointChange: (String) -> Unit,
     onDatasetLabelChange: (String) -> Unit,
     onDismissError: () -> Unit,
+    onDeleteSession: (DetectionSession) -> Unit,
     onExportCsv: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -189,6 +193,7 @@ fun VoiceDetectorScreen(
                 onStartRecording    = onStartRecording,
                 onStopRecording     = onStopRecording,
                 onStopAndSaveSample = onStopAndSaveSample,
+                onPickAudioFile     = onPickAudioFile,
                 onDismissError      = onDismissError,
                 modifier            = Modifier.padding(pad)
             )
@@ -196,16 +201,13 @@ fun VoiceDetectorScreen(
                 sessions      = uiState.sessions,
                 isExporting   = uiState.isExporting,
                 lastExportPath = uiState.lastExportPath,
+                onDeleteSession = onDeleteSession,
                 onExportCsv   = onExportCsv,
                 modifier      = Modifier.padding(pad)
             )
             2 -> SettingsTab(
                 uiState                = uiState,
-                onAsvScoreInputChange  = onAsvScoreInputChange,
                 onSpoofThresholdChange = onSpoofThresholdChange,
-                onAsvThresholdChange   = onAsvThresholdChange,
-                onUseRemoteAsvChange   = onUseRemoteAsvChange,
-                onAsvEndpointChange    = onAsvEndpointChange,
                 onDatasetLabelChange   = onDatasetLabelChange,
                 modifier               = Modifier.padding(pad)
             )
@@ -224,6 +226,7 @@ private fun DetectTab(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onStopAndSaveSample: () -> Unit,
+    onPickAudioFile: () -> Unit,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -266,7 +269,8 @@ private fun DetectTab(
                         uiState             = uiState,
                         onStartRecording    = onStartRecording,
                         onStopRecording     = onStopRecording,
-                        onStopAndSaveSample = onStopAndSaveSample
+                        onStopAndSaveSample = onStopAndSaveSample,
+                        onPickAudioFile     = onPickAudioFile
                     )
                 }
             }
@@ -318,6 +322,7 @@ private fun DetectTab(
                 DetectEmptyHint()
             }
         }
+
     }
 }
 
@@ -326,7 +331,8 @@ private fun RecordingHero(
     uiState: DetectorUiState,
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
-    onStopAndSaveSample: () -> Unit
+    onStopAndSaveSample: () -> Unit,
+    onPickAudioFile: () -> Unit
 ) {
     val isRecording  = uiState.isRecording
     val isAnalyzing  = uiState.isAnalyzing
@@ -462,11 +468,72 @@ private fun RecordingHero(
 
         // Chips
         if (!isRecording && !isAnalyzing) {
+            uiState.lastImportedFileName?.let { fileName ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.10f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Teal400.copy(alpha = 0.18f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Link, contentDescription = null, tint = Teal400, modifier = Modifier.size(18.dp))
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                "File kiểm tra gần nhất",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Teal400,
+                                letterSpacing = 0.4.sp
+                            )
+                            Text(
+                                fileName,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MiniChip("On-Device AI", Teal400)
                 MiniChip("TFLite",       Purple)
                 MiniChip("Offline",      Green500)
             }
+
+            OutlinedButton(
+                onClick = onPickAudioFile,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White.copy(alpha = 0.9f))
+            ) {
+                Icon(Icons.Filled.Link, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Chọn File WAV Bonafide / Spoof", fontSize = 13.sp)
+            }
+
+            Text(
+                text = if (uiState.lastImportedFileName == null) {
+                    "Có thể chọn file WAV có sẵn để kiểm tra lại bonafide hoặc spoof."
+                } else {
+                    "Chọn file WAV khác để kiểm tra nhanh lại kết quả trên thiết bị."
+                },
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.65f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
         }
     }
 }
@@ -564,6 +631,7 @@ private fun DecisionResultCard(result: FusionDecisionResult) {
                 verticalAlignment     = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -573,14 +641,25 @@ private fun DecisionResultCard(result: FusionDecisionResult) {
                     ) {
                         Text(emoji, fontSize = 22.sp, fontWeight = FontWeight.Black, color = accent)
                     }
-                    Column {
-                        Text(headline, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold, color = accent)
-                        Text(sub, fontSize = 12.sp, color = OnSurfaceMid)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            headline,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accent,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            sub,
+                            fontSize = 12.sp,
+                            color = OnSurfaceMid,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                IconButton(onClick = { showInfo = true }, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Filled.Info, contentDescription = null, tint = accent.copy(alpha = 0.6f))
-                }
+                HelpIconButton(tint = accent.copy(alpha = 0.75f)) { showInfo = true }
             }
 
             Text(result.reason, fontSize = 13.sp, color = OnSurfaceMid, lineHeight = 19.sp)
@@ -591,10 +670,10 @@ private fun DecisionResultCard(result: FusionDecisionResult) {
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatCell(label = "Spoof",   value = "${(result.spoofProbability * 100).toInt()}%", color = accent)
-                StatCell(label = "ASV",     value = "%.2f".format(result.asvScore),               color = accent)
-                StatCell(label = "Anti-spoof", value = if (result.meetsSpoofThreshold) "PASS" else "FAIL", color = accent)
-                StatCell(label = "Speaker",    value = if (result.meetsAsvThreshold)   "PASS" else "FAIL", color = accent)
+                StatCell(label = "Spoof", value = formatPercent(result.spoofProbability), color = accent, modifier = Modifier.weight(1f))
+                StatCell(label = "Ngưỡng", value = formatPercent(result.spoofThreshold), color = accent, modifier = Modifier.weight(1f))
+                StatCell(label = "Tin cậy", value = formatPercent(result.confidence), color = accent, modifier = Modifier.weight(1f))
+                StatCell(label = "Kết luận", value = if (result.meetsSpoofThreshold) "PASS" else "FAIL", color = accent, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -602,19 +681,25 @@ private fun DecisionResultCard(result: FusionDecisionResult) {
     if (showInfo) {
         InfoDialog(
             title = "Quyết định xác thực",
-            body  = "Hệ thống kết hợp 2 nguồn:\n\n▸ AI Anti-Spoof: phân tích 8 đặc trưng âm thanh, phát hiện giọng TTS/replay.\n▸ ASV: xác minh đúng người đăng ký.\n\nALLOW — Giọng thật + đúng người.\nREVIEW — Không chắc chắn, cần xem lại.\nBLOCK — Phát hiện giả mạo.",
+            body  = "Hệ thống hiện tại dùng duy nhất nhánh AI anti-spoof chạy trực tiếp trên thiết bị để ước lượng xác suất giả mạo.\n\nALLOW — Xác suất spoof thấp và cách xa ngưỡng.\nREVIEW — Xác suất spoof ở vùng cận ngưỡng, cần xem lại.\nBLOCK — Xác suất spoof đã vượt ngưỡng phát hiện.",
             onDismiss = { showInfo = false }
         )
     }
 }
 
 @Composable
-private fun StatCell(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+private fun StatCell(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
         Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = color)
         Text(label, fontSize = 10.sp, color = OnSurfaceLow, textAlign = TextAlign.Center)
     }
 }
+
+private fun formatPercent(value: Float): String = "%.2f%%".format(value * 100f)
 
 // ─── Spoof Detail Card ────────────────────────────────────────────────────────
 @Composable
@@ -655,9 +740,7 @@ private fun SpoofDetailCard(result: DetectionResult) {
                         Text(sub, fontSize = 13.sp, color = OnSurfaceMid, fontWeight = FontWeight.Medium)
                     }
                 }
-                IconButton(onClick = { showInfo = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Info, contentDescription = null, tint = Teal500.copy(alpha = 0.7f))
-                }
+                HelpIconButton(tint = Teal500.copy(alpha = 0.8f)) { showInfo = true }
             }
 
             // Progress bar
@@ -668,7 +751,7 @@ private fun SpoofDetailCard(result: DetectionResult) {
                 ) {
                     Text("Xác suất giả mạo", fontSize = 12.sp, color = OnSurfaceMid)
                     Text(
-                        "${(result.spoofProbability * 100).toInt()}%",
+                        formatPercent(result.spoofProbability),
                         fontSize   = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color      = accent
@@ -686,7 +769,7 @@ private fun SpoofDetailCard(result: DetectionResult) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("0% Thật", fontSize = 10.sp, color = Green500)
-                    Text("Ngưỡng ${"%.0f".format(result.threshold * 100)}%", fontSize = 10.sp, color = OnSurfaceLow)
+                    Text("Ngưỡng ${"%.2f".format(result.threshold * 100)}%", fontSize = 10.sp, color = OnSurfaceLow)
                     Text("100% Giả", fontSize = 10.sp, color = Red500)
                 }
             }
@@ -697,9 +780,9 @@ private fun SpoofDetailCard(result: DetectionResult) {
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MetricPill("Độ tin cậy", "${(result.confidence * 100).toInt()}%", Teal500)
-                MetricPill("Thời lượng", "${"%.1f".format(result.recordingDurationSec)}s", Purple)
-                MetricPill("Engine", result.modelName, if (result.modelName.contains("tflite")) Green500 else Orange500)
+                MetricPill("Độ tin cậy", formatPercent(result.confidence), Teal500, modifier = Modifier.weight(1f))
+                MetricPill("Thời lượng", "${"%.1f".format(result.recordingDurationSec)}s", Purple, modifier = Modifier.weight(1f))
+                MetricPill("Engine", result.modelName, if (result.modelName.contains("tflite")) Green500 else Orange500, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -707,7 +790,7 @@ private fun SpoofDetailCard(result: DetectionResult) {
     if (showInfo) {
         InfoDialog(
             title = "Giải thích Anti-Spoof",
-            body  = "Xác suất giả mạo > Ngưỡng → SPOOF (giả mạo)\nXác suất ≤ Ngưỡng → BONAFIDE (thật)\n\nĐộ tin cậy: mô hình 'chắc chắn' đến mức nào.\n\nEngine TFLite = mô hình AI chính thức.\nHeuristic = fallback khi chưa có model.",
+            body  = "Xác suất giả mạo > Ngưỡng → SPOOF\nXác suất giả mạo ≤ Ngưỡng → BONAFIDE\n\nĐộ tin cậy: mức độ phân tách tương đối của kết quả hiện tại.\n\nEngine TFLite: suy luận bằng mô hình được đóng gói trong ứng dụng.\nHeuristic: nhánh thay thế chỉ xuất hiện khi mô hình không khả dụng ở môi trường cho phép.",
             onDismiss = { showInfo = false }
         )
     }
@@ -752,11 +835,11 @@ private fun FeaturesCard(result: DetectionResult) {
                     listOf(
                         Triple("RMS",           "Root Mean Square",    "Năng lượng trung bình. Giọng TTS thường có RMS ổn định bất thường."),
                         Triple("Mean Abs",       "Biên độ trung bình",  "Giá trị tuyệt đối trung bình. Liên quan đến âm lượng tổng thể."),
-                        Triple("ZCR",            "Zero Crossing Rate",  "Tần suất tín hiệu đổi dấu. TTS có ZCR khác giọng người thật."),
-                        Triple("Peak",           "Đỉnh biên độ",        "Giá trị lớn nhất. Phát hiện clipping hoặc replay attack."),
+                        Triple("ZCR",            "Zero Crossing Rate",  "Tần suất tín hiệu đổi dấu, dùng để mô tả biến thiên cơ bản của dạng sóng."),
+                        Triple("Peak",           "Đỉnh biên độ",        "Giá trị lớn nhất của biên độ, hỗ trợ phát hiện các trường hợp tín hiệu quá gắt hoặc méo."),
                         Triple("Crest Factor",   "Hệ số đỉnh",          "Tỉ lệ đỉnh/RMS. Phản ánh cấu trúc động của tín hiệu."),
-                        Triple("Clipping Ratio", "Tỉ lệ bão hoà",       "Tỷ lệ mẫu >98% biên độ. Dấu hiệu replay qua loa ngoài."),
-                        Triple("Dynamic Range",  "Dải động",            "Khoảng max − min. Giọng thật có dải động tự nhiên hơn."),
+                        Triple("Clipping Ratio", "Tỉ lệ bão hoà",       "Tỷ lệ mẫu >98% biên độ, hỗ trợ nhận diện tín hiệu bị bão hòa hoặc ghi âm không ổn định."),
+                        Triple("Dynamic Range",  "Dải động",            "Khoảng max − min, dùng để mô tả biên độ dao động của tín hiệu."),
                         Triple("Duration",       "Thời lượng",          "Độ dài đoạn âm thanh (giây). Ảnh hưởng độ tin cậy đặc trưng.")
                     ).forEach { (short, eng, desc) ->
                         Row(
@@ -810,6 +893,7 @@ private fun HistoryTab(
     sessions: List<DetectionSession>,
     isExporting: Boolean = false,
     lastExportPath: String? = null,
+    onDeleteSession: (DetectionSession) -> Unit = {},
     onExportCsv: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -914,8 +998,12 @@ private fun HistoryTab(
                 contentPadding      = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(sessions.reversed()) { idx, session ->
-                    SessionCard(number = sessions.size - idx, session = session)
+                itemsIndexed(sessions) { idx, session ->
+                    SessionCard(
+                        number = sessions.size - idx,
+                        session = session,
+                        onDelete = { onDeleteSession(session) }
+                    )
                 }
             }
         }
@@ -936,7 +1024,11 @@ private fun HistoryStatChip(text: String, textColor: Color, bgColor: Color) {
 }
 
 @Composable
-private fun SessionCard(number: Int, session: DetectionSession) {
+private fun SessionCard(
+    number: Int,
+    session: DetectionSession,
+    onDelete: () -> Unit = {}
+) {
     val decision = session.fusionDecision.decision
     val accent   = when (decision) {
         AuthenticationDecision.ALLOW  -> Green500
@@ -964,9 +1056,9 @@ private fun SessionCard(number: Int, session: DetectionSession) {
         shape  = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(0.5.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
             // Left color bar
-            Box(modifier = Modifier.width(4.dp).height(72.dp).background(accent))
+            Box(modifier = Modifier.width(4.dp).fillMaxHeight().background(accent))
             Row(
                 modifier              = Modifier.padding(horizontal = 14.dp, vertical = 12.dp).fillMaxWidth(),
                 verticalAlignment     = Alignment.CenterVertically,
@@ -995,13 +1087,32 @@ private fun SessionCard(number: Int, session: DetectionSession) {
                         Text("#$number", fontSize = 12.sp, color = OnSurfaceLow)
                     }
                     Text(
-                        "Spoof ${"%.0f".format(session.detectionResult.spoofProbability * 100)}%  ·  " +
-                        "ASV ${"%.2f".format(session.fusionDecision.asvScore)}  ·  " +
+                        "Spoof ${"%.2f".format(session.detectionResult.spoofProbability * 100)}%  ·  " +
+                        "Tin cậy ${"%.2f".format(session.detectionResult.confidence * 100)}%  ·  " +
                         "${"%.1f".format(session.detectionResult.recordingDurationSec)}s",
                         fontSize = 12.sp, color = OnSurfaceMid
                     )
                 }
-                Text(formatTime(session.createdAtEpochMs), fontSize = 11.sp, color = OnSurfaceLow)
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Red500.copy(alpha = 0.10f))
+                            .size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.DeleteForever,
+                            contentDescription = "Xoa muc lich su",
+                            tint = Red500,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(formatTime(session.createdAtEpochMs), fontSize = 11.sp, color = OnSurfaceLow)
+                }
             }
         }
     }
@@ -1013,11 +1124,7 @@ private fun SessionCard(number: Int, session: DetectionSession) {
 @Composable
 private fun SettingsTab(
     uiState: DetectorUiState,
-    onAsvScoreInputChange: (String) -> Unit,
     onSpoofThresholdChange: (Float) -> Unit,
-    onAsvThresholdChange: (Float) -> Unit,
-    onUseRemoteAsvChange: (Boolean) -> Unit,
-    onAsvEndpointChange: (String) -> Unit,
     onDatasetLabelChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1041,7 +1148,7 @@ private fun SettingsTab(
                     Icon(Icons.Filled.Settings, contentDescription = null, tint = Teal400, modifier = Modifier.size(20.dp))
                     Text("Cài đặt", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
-                Text("Ngưỡng · ASV · Dataset · Hướng dẫn", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
+                Text("Ngưỡng · Dataset", fontSize = 12.sp, color = Color.White.copy(alpha = 0.5f))
             }
         }
 
@@ -1052,9 +1159,6 @@ private fun SettingsTab(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Model info
-            ModelInfoCard()
-
             // Threshold settings
             SettingsSection(title = "PHÂN TÍCH") {
                 ThresholdRow(
@@ -1066,68 +1170,6 @@ private fun SettingsTab(
                     onSliderChange = onSpoofThresholdChange,
                     color   = Red500
                 )
-                HorizontalDivider(color = Surface0, thickness = 1.dp)
-                ThresholdRow(
-                    icon    = Icons.Filled.Person,
-                    label   = "Ngưỡng xác minh người nói",
-                    value   = "%.2f".format(uiState.asvThreshold),
-                    sub     = "ASV Threshold — ngưỡng PASS / FAIL speaker",
-                    sliderVal      = uiState.asvThreshold,
-                    onSliderChange = onAsvThresholdChange,
-                    color   = Teal500
-                )
-            }
-
-            // ASV connection
-            SettingsSection(title = "KẾT NỐI ASV") {
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment     = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(Icons.Filled.Link, contentDescription = null, tint = Teal500, modifier = Modifier.size(20.dp))
-                        Column {
-                            Text("Dùng ASV Backend từ xa", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnSurface)
-                            Text("Kết nối server xác minh danh tính", fontSize = 11.sp, color = OnSurfaceMid)
-                        }
-                    }
-                    Switch(
-                        checked         = if (uiState.strictReleaseMode) true else uiState.useRemoteAsv,
-                        onCheckedChange  = onUseRemoteAsvChange,
-                        enabled         = !uiState.strictReleaseMode
-                    )
-                }
-                OutlinedTextField(
-                    value          = uiState.asvEndpoint,
-                    onValueChange  = onAsvEndpointChange,
-                    label          = { Text("Endpoint ASV Server") },
-                    placeholder    = { Text("https://your-server/api/asv/score") },
-                    modifier       = Modifier.fillMaxWidth(),
-                    singleLine     = true,
-                    supportingText = { Text("Để trống nếu chỉ dùng AI offline", fontSize = 11.sp) }
-                )
-                if (!uiState.strictReleaseMode) {
-                    OutlinedTextField(
-                        value          = uiState.asvScoreInput,
-                        onValueChange  = onAsvScoreInputChange,
-                        label          = { Text("Điểm ASV thủ công (debug)") },
-                        modifier       = Modifier.fillMaxWidth(),
-                        singleLine     = true,
-                        supportingText = { Text("0.0 – 1.0, chỉ dùng khi không có ASV server", fontSize = 11.sp) }
-                    )
-                }
-                Surface(shape = RoundedCornerShape(8.dp), color = TealBg) {
-                    Text(
-                        "ASV: ${uiState.lastAsvSource} · Độ trễ: ${uiState.lastAsvLatencyMs}ms",
-                        modifier   = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        fontSize   = 11.sp,
-                        color      = Teal500
-                    )
-                }
             }
 
             // Dataset
@@ -1146,7 +1188,7 @@ private fun SettingsTab(
                         HorizontalDivider(color = Surface0)
                         listOf(
                             Triple("1", "Nhấn nút Ghi Âm",      "Nói rõ ràng vào mic trong 2–5 giây."),
-                            Triple("2", "Nhấn Dừng & Phân Tích", "AI trích xuất 8 đặc trưng rồi phân loại."),
+                            Triple("2", "Nhấn Dừng & Phân Tích", "Ứng dụng trích xuất đặc trưng âm thanh rồi thực hiện suy luận."),
                             Triple("3", "Đọc kết quả",           "BONAFIDE/SPOOF + ALLOW/REVIEW/BLOCK.")
                         ).forEach { (n, t, d) ->
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1181,7 +1223,6 @@ private fun SettingsTab(
                             "Replay Attack"    to "Phát lại bản ghi âm giọng thật để đánh lừa hệ thống.",
                             "MFCC"             to "Mel-Frequency Cepstral Coefficients — đặc trưng xử lý tiếng nói.",
                             "Anti-Spoof / CM"  to "Countermeasure — hệ thống chống giả mạo giọng nói.",
-                            "ASV"              to "Automatic Speaker Verification — xác minh danh tính người nói.",
                             "TFLite / LiteRT"  to "TensorFlow Lite — AI nhẹ chạy trực tiếp trên thiết bị.",
                             "EER"              to "Equal Error Rate — chỉ số đánh giá hệ thống (càng thấp càng tốt).",
                             "Edge AI"          to "AI chạy trên thiết bị, không gửi dữ liệu lên server.",
@@ -1282,25 +1323,30 @@ private fun AboutCard() {
                 ) {
                     TechChip("Kotlin / Compose")
                     TechChip("TFLite / LiteRT")
-                    TechChip("DNN 8-feature")
+                    TechChip("On-device AI")
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TechChip("VIVOS Dataset")
-                    TechChip("mc_thu_hue Spoof")
+                    TechChip("DataStore")
+                    TechChip("AudioRecord")
                     TechChip("Edge AI")
                 }
             }
 
-            // Model performance
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                AboutMetric("98.2%", "Accuracy")
-                AboutMetric("0.982", "F1 Score")
-                AboutMetric("1.93%", "EER")
-                AboutMetric("0.997", "AUC")
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "GHI CHÚ TRIỂN KHAI",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Teal400,
+                    letterSpacing = 0.8.sp
+                )
+                Text(
+                    "Màn hình này chỉ hiển thị thông tin mô tả ứng dụng và công nghệ triển khai. Các chỉ số quyết định, xác suất spoof, thời gian suy luận và lịch sử phiên được lấy từ luồng chạy thực tế ở các màn hình chức năng tương ứng.",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.78f),
+                    lineHeight = 18.sp
+                )
             }
         }
     }
@@ -1342,63 +1388,6 @@ private fun TechChip(text: String) {
 }
 
 @Composable
-private fun AboutMetric(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Green500)
-        Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.4f))
-    }
-}
-
-@Composable
-private fun ModelInfoCard() {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Navy700),
-        shape  = RoundedCornerShape(18.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier         = Modifier.size(38.dp).background(Teal500.copy(alpha = 0.2f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Shield, contentDescription = null, tint = Teal400, modifier = Modifier.size(20.dp))
-                }
-                Column {
-                    Text("Mô hình AI hiện tại", fontSize = 11.sp, color = Color.White.copy(alpha = 0.5f))
-                    Text("voice_spoof_detector.tflite", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-            }
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                ModelMetric("Accuracy",  "98.2%",  Teal400)
-                ModelMetric("F1 Score",  "0.982",  Green500)
-                ModelMetric("Precision", "98.1%",  Purple)
-                ModelMetric("Recall",    "98.4%",  Orange500)
-            }
-            Text(
-                "Dataset: VIVOS (12,420 bonafide) + mc_thu_hue_fix_char (12,420 spoof)",
-                fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f), textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModelMetric(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = color)
-        Text(label, fontSize = 10.sp, color = Color.White.copy(alpha = 0.4f))
-    }
-}
-
-@Composable
 private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
@@ -1431,6 +1420,10 @@ private fun ThresholdRow(
     onSliderChange: (Float) -> Unit,
     color: Color
 ) {
+    var showExactInput by remember { mutableStateOf(false) }
+    var exactInput by remember(sliderVal) { mutableStateOf("%.2f".format(sliderVal)) }
+    var exactInputError by remember { mutableStateOf<String?>(null) }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             verticalAlignment     = Alignment.CenterVertically,
@@ -1441,7 +1434,15 @@ private fun ThresholdRow(
                 Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnSurface)
                 Text(sub, fontSize = 11.sp, color = OnSurfaceMid)
             }
-            Surface(shape = RoundedCornerShape(8.dp), color = color.copy(alpha = 0.1f)) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = color.copy(alpha = 0.1f),
+                modifier = Modifier.clickable {
+                    exactInput = "%.2f".format(sliderVal)
+                    exactInputError = null
+                    showExactInput = true
+                }
+            ) {
                 Text(
                     value,
                     modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1456,6 +1457,54 @@ private fun ThresholdRow(
             onValueChange = onSliderChange,
             valueRange    = 0.05f..0.95f,
             modifier      = Modifier.padding(horizontal = 4.dp)
+        )
+        Text(
+            "Chạm vào giá trị để nhập threshold chính xác.",
+            fontSize = 11.sp,
+            color = OnSurfaceLow
+        )
+    }
+
+    if (showExactInput) {
+        AlertDialog(
+            onDismissRequest = { showExactInput = false },
+            title = { Text("Nhập threshold chính xác") },
+            text = {
+                OutlinedTextField(
+                    value = exactInput,
+                    onValueChange = {
+                        exactInput = it
+                        exactInputError = null
+                    },
+                    singleLine = true,
+                    label = { Text("Threshold") },
+                    placeholder = { Text("Ví dụ: 0.25") },
+                    isError = exactInputError != null,
+                    supportingText = {
+                        Text(exactInputError ?: "Giá trị hợp lệ từ 0.05 đến 0.95")
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val parsed = exactInput.replace(',', '.').toFloatOrNull()
+                        if (parsed == null || parsed !in 0.05f..0.95f) {
+                            exactInputError = "Vui lòng nhập số trong khoảng 0.05 đến 0.95"
+                        } else {
+                            onSliderChange(parsed)
+                            showExactInput = false
+                        }
+                    }
+                ) {
+                    Text("Áp dụng")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExactInput = false }) {
+                    Text("Hủy")
+                }
+            }
         )
     }
 }
@@ -1560,8 +1609,12 @@ private fun DatasetCaptureContent(
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
 @Composable
-private fun MetricPill(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+private fun MetricPill(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
         Text(label, fontSize = 10.sp, color = OnSurfaceLow, textAlign = TextAlign.Center)
         Surface(shape = RoundedCornerShape(8.dp), color = color.copy(alpha = 0.1f)) {
             Text(
@@ -1569,7 +1622,9 @@ private fun MetricPill(label: String, value: String, color: Color) {
                 modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 fontSize   = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color      = color
+                color      = color,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
             )
         }
     }
@@ -1611,9 +1666,7 @@ private fun PerformanceCard(uiState: DetectorUiState) {
                     Icon(Icons.Filled.Speed, contentDescription = null, tint = Purple, modifier = Modifier.size(18.dp))
                     Text("Hiệu năng thực tế", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3D2B6B))
                 }
-                IconButton(onClick = { showInfo = true }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Filled.Info, contentDescription = null, tint = Purple.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                }
+                HelpIconButton(tint = Purple.copy(alpha = 0.75f)) { showInfo = true }
             }
             Row(
                 modifier              = Modifier.fillMaxWidth(),
@@ -1622,22 +1675,26 @@ private fun PerformanceCard(uiState: DetectorUiState) {
                 PerfMetric(
                     label = "Trích đặc trưng",
                     value = "${uiState.lastFeatureMs} ms",
-                    color = Teal500
+                    color = Teal500,
+                    modifier = Modifier.weight(1f)
                 )
                 PerfMetric(
                     label = "TFLite inference",
                     value = "${uiState.lastInferenceMs} ms",
-                    color = Purple
+                    color = Purple,
+                    modifier = Modifier.weight(1f)
                 )
                 PerfMetric(
                     label = "Tổng pipeline",
                     value = "${uiState.lastTotalPipelineMs} ms",
-                    color = Green500
+                    color = Green500,
+                    modifier = Modifier.weight(1f)
                 )
                 PerfMetric(
                     label = "RAM (JVM)",
                     value = "${"%.1f".format(uiState.lastRamMb)} MB",
-                    color = Orange500
+                    color = Orange500,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -1646,17 +1703,36 @@ private fun PerformanceCard(uiState: DetectorUiState) {
     if (showInfo) {
         InfoDialog(
             title = "Hiệu năng on-device",
-            body  = "Trích đặc trưng: thời gian tính 8 đặc trưng từ PCM audio.\n\nTFLite inference: thời gian model DNN chạy forward pass trên thiết bị.\n\nTổng pipeline: từ lúc bắt đầu phân tích đến có kết quả (gồm validation + feature + inference).\n\nRAM (JVM): bộ nhớ Java Heap đang sử dụng bởi app tại thời điểm phân tích.",
+            body  = "Trích đặc trưng: thời gian tính các đặc trưng âm thanh từ PCM audio.\n\nTFLite inference: thời gian mô hình chạy suy luận trên thiết bị.\n\nTổng pipeline: từ lúc bắt đầu phân tích đến khi có kết quả, bao gồm kiểm tra đầu vào, trích đặc trưng và suy luận.\n\nRAM (JVM): bộ nhớ Java Heap đang sử dụng bởi ứng dụng tại thời điểm phân tích.",
             onDismiss = { showInfo = false }
         )
     }
 }
 
 @Composable
-private fun PerfMetric(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+private fun PerfMetric(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
         Text(value, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = color)
         Text(label, fontSize = 9.sp, color = OnSurfaceLow, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun HelpIconButton(
+    tint: Color,
+    onClick: () -> Unit
+) {
+    IconButton(onClick = onClick, modifier = Modifier.size(HelpIconButtonSize)) {
+        Icon(
+            Icons.Filled.Info,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(HelpIconSize)
+        )
     }
 }
 
@@ -1666,7 +1742,7 @@ private fun InfoDialog(title: String, body: String, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.Info, contentDescription = null, tint = Teal500, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.Info, contentDescription = null, tint = Teal500, modifier = Modifier.size(HelpIconSize))
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         },

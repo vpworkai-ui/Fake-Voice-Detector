@@ -91,6 +91,16 @@ android {
     androidResources {
         noCompress += "tflite"
     }
+
+    sourceSets {
+        getByName("debug") {
+            assets.srcDir("../ml/artifacts/mixed_retrain")
+        }
+        getByName("androidTest") {
+            assets.srcDir("../data/sample_pack_2026_06_24/samples")
+            assets.srcDir("../ml/artifacts/mixed_retrain")
+        }
+    }
 }
 
 kotlin {

@@ -9,8 +9,8 @@ enum class AuthenticationDecision {
 data class FusionDecisionResult(
     val decision: AuthenticationDecision,
     val reason: String,
-    val asvScore: Float,
     val spoofProbability: Float,
-    val meetsAsvThreshold: Boolean,
+    val spoofThreshold: Float,
+    val confidence: Float,
     val meetsSpoofThreshold: Boolean
 )

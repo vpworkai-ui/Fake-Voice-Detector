@@ -1,42 +1,38 @@
 package com.vpsaker.fake_voice_detector.domain.usecase
 
 import com.vpsaker.fake_voice_detector.domain.model.AuthenticationDecision
-import com.vpsaker.fake_voice_detector.domain.model.SecurityConfig
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class FuseAuthenticationUseCaseTest {
+class EvaluateSpoofResultUseCaseTest {
 
-    private val useCase = FuseAuthenticationUseCase()
+    private val useCase = EvaluateSpoofResultUseCase()
 
     @Test
     fun `block when spoof probability is above threshold`() {
         val result = useCase(
             spoofProbability = 0.82f,
-            asvScore = 0.91f,
-            config = SecurityConfig(spoofThreshold = 0.5f, asvThreshold = 0.75f)
+            spoofThreshold = 0.5f
         )
 
         assertEquals(AuthenticationDecision.BLOCK, result.decision)
     }
 
     @Test
-    fun `allow when spoof risk is low and asv is high`() {
+    fun `allow when spoof risk is safely below threshold`() {
         val result = useCase(
             spoofProbability = 0.12f,
-            asvScore = 0.86f,
-            config = SecurityConfig(spoofThreshold = 0.5f, asvThreshold = 0.75f)
+            spoofThreshold = 0.5f
         )
 
         assertEquals(AuthenticationDecision.ALLOW, result.decision)
     }
 
     @Test
-    fun `review when asv is borderline and spoof risk very low`() {
+    fun `review when spoof risk is near threshold`() {
         val result = useCase(
-            spoofProbability = 0.10f,
-            asvScore = 0.69f,
-            config = SecurityConfig(spoofThreshold = 0.5f, asvThreshold = 0.75f)
+            spoofProbability = 0.45f,
+            spoofThreshold = 0.5f
         )
 
         assertEquals(AuthenticationDecision.REVIEW, result.decision)

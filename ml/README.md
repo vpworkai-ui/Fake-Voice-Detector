@@ -2,7 +2,7 @@
 
 Thư mục này chứa toàn bộ pipeline huấn luyện mô hình anti-spoof.
 
-> **Hướng dẫn đầy đủ**: xem [TRAINING_GUIDE.md](../TRAINING_GUIDE.md) ở thư mục gốc.
+> **Hướng dẫn đầy đủ**: xem [docs/training/README.md](../docs/training/README.md).
 
 ## Cấu trúc thư mục
 
@@ -56,7 +56,7 @@ python ml/prepare_dataset.py \
 ```bash
 python ml/prepare_dataset.py \
   --mode demo \
-  --spoof-src resourse/mc_thu_hue_fix_char/wavs \
+  --spoof-src resources/mc_thu_hue_fix_char/wavs \
   --output data/dataset_samples
 ```
 
@@ -92,5 +92,7 @@ cp ml/artifacts/voice_spoof_detector.tflite \
 
 - Feature order phải khớp giữa Python (`extract_features()`) và Kotlin (`AudioFeatureExtractor.kt`):
   `rms → meanAbs → zcr → peak → crestFactor → clippingRatio → dynamicRange → durationSec`
+- Với app Android đang deploy, phần tử thứ 8 hiện được hiểu là `durationSec` của toàn bộ đoạn audio, không phải VAD-based `activeDuration`.
+- Một số script nghiên cứu / train lại trong `ml/` vẫn giữ tên lịch sử `active_duration_sec` để tương thích với artifact cũ; khi đối chiếu với runtime Android, ưu tiên đọc theo [app/src/main/assets/models/README.md](../app/src/main/assets/models/README.md).
 - `artifacts/` và `charts/` không được đẩy lên Git (xem `.gitignore`)
 - Cần tối thiểu ~200 file/lớp; khuyến nghị 1000+ file/lớp cho kết quả tốt

@@ -26,8 +26,10 @@ class MicrophoneAudioRecorder : AudioRecorder {
                 return Result.failure(IllegalStateException("Unable to resolve buffer size"))
             }
 
+            // VOICE_RECOGNITION: Android applies noise suppression + echo cancellation
+            // automatically, normalising across different microphone hardware.
             val recorder = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 sampleRateHz,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
