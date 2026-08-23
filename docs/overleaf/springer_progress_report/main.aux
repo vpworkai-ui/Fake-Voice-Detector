@@ -1,0 +1,85 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\bibstyle{sn-mathphys-num}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand*\HyPL@Entry[1]{}
+\citation{wu2015asvspoof,wang2020asvspoof2019}
+\HyPL@Entry{0<</S/D>>}
+\Newlabel{1}{1}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:introduction}{{1}{1}{Introduction}{section.1}{}}
+\citation{tak2021rawnet2,jung2022aasist,tak2022rawboost}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Development Context}{2}{section.2}\protected@file@percent }
+\newlabel{sec:completed-work}{{2}{2}{Development Context}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}External Data Preparation and Evaluation Pipeline}{2}{subsection.2.1}\protected@file@percent }
+\citation{todisco2016cqcc}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Model Retraining, Analysis, and Android Integration}{3}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Scientific Rationale for the Eight Handcrafted Features}{3}{section.3}\protected@file@percent }
+\newlabel{sec:features}{{3}{3}{Scientific Rationale for the Eight Handcrafted Features}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Why Handcrafted Features Were Used}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Feature Definitions and Motivation}{4}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Eight handcrafted audio features used by the deployed pipeline.\relax }}{4}{table.caption.3}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:features}{{1}{4}{Eight handcrafted audio features used by the deployed pipeline.\relax }{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Why Exactly Eight Features Were Retained}{4}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Quantitative Validation}{5}{section.4}\protected@file@percent }
+\newlabel{sec:validation}{{4}{5}{Quantitative Validation}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Ablation Study}{5}{subsection.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Leave-one-out feature ablation results.\relax }}{5}{table.caption.5}\protected@file@percent }
+\newlabel{tab:ablation}{{2}{5}{Leave-one-out feature ablation results.\relax }{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}t-SNE Visualization and Domain Shift}{5}{subsection.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Feature ablation summary for the eight handcrafted descriptors. Positive values indicate F1 reduction after a feature is removed, so larger bars correspond to more important cues.\relax }}{6}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:ablation}{{1}{6}{Feature ablation summary for the eight handcrafted descriptors. Positive values indicate F1 reduction after a feature is removed, so larger bars correspond to more important cues.\relax }{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces t-SNE analysis of the handcrafted feature space. The classes are separable, but a clear source-domain gap remains.\relax }}{6}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:tsne}{{2}{6}{t-SNE analysis of the handcrafted feature space. The classes are separable, but a clear source-domain gap remains.\relax }{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Three-Model Comparison}{7}{subsection.4.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Internal evaluation results.\relax }}{7}{table.caption.9}\protected@file@percent }
+\newlabel{tab:internal}{{3}{7}{Internal evaluation results.\relax }{table.caption.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces External holdout results at threshold 0.25.\relax }}{7}{table.caption.11}\protected@file@percent }
+\newlabel{tab:external}{{4}{7}{External holdout results at threshold 0.25.\relax }{table.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Threshold Calibration and Deployment Constraint Check}{7}{subsection.4.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces External holdout comparison of the three lightweight models from the original project report.\relax }}{8}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:model-comparison}{{3}{8}{External holdout comparison of the three lightweight models from the original project report.\relax }{figure.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Confusion matrix of Cross-Scale Attention Lite on the 1{,}700-sample external holdout at threshold 0.25.\relax }}{8}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:confusion}{{4}{8}{Confusion matrix of Cross-Scale Attention Lite on the 1{,}700-sample external holdout at threshold 0.25.\relax }{figure.caption.13}{}}
+\citation{wu2015asvspoof,wang2020asvspoof2019}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Deployment constraint check for the Android branch.\relax }}{9}{table.caption.15}\protected@file@percent }
+\newlabel{tab:acceptance}{{5}{9}{Deployment constraint check for the Android branch.\relax }{table.caption.15}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Android Application Status}{9}{section.5}\protected@file@percent }
+\newlabel{sec:android-status}{{5}{9}{Android Application Status}{section.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Discussion}{9}{section.6}\protected@file@percent }
+\newlabel{sec:discussion}{{6}{9}{Discussion}{section.6}{}}
+\citation{tensorflowlite}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Updated detection workflow after the UI restructuring.\relax }}{10}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:detection}{{5}{10}{Updated detection workflow after the UI restructuring.\relax }{figure.caption.16}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces File-based testing on representative bonafide and spoof examples in the Android application.\relax }}{11}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:sample-tests}{{6}{11}{File-based testing on representative bonafide and spoof examples in the Android application.\relax }{figure.caption.17}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Limitations and Future Work}{11}{section.7}\protected@file@percent }
+\newlabel{sec:plan-requests}{{7}{11}{Limitations and Future Work}{section.7}{}}
+\bibdata{references}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Main directions for future work.\relax }}{12}{table.caption.19}\protected@file@percent }
+\newlabel{tab:next-plan}{{6}{12}{Main directions for future work.\relax }{table.caption.19}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{12}{section.8}\protected@file@percent }
+\newlabel{sec:conclusion}{{8}{12}{Conclusion}{section.8}{}}
+\bibcite{wu2015asvspoof}{{1}{2015}{{Wu et~al.}}{{}}}
+\bibcite{wang2020asvspoof2019}{{2}{2020}{{Wang et~al.}}{{}}}
+\bibcite{tak2021rawnet2}{{3}{2021}{{Tak et~al.}}{{}}}
+\bibcite{jung2022aasist}{{4}{2022}{{Jung et~al.}}{{}}}
+\bibcite{tak2022rawboost}{{5}{2022}{{Tak et~al.}}{{}}}
+\bibcite{todisco2016cqcc}{{6}{2016}{{Todisco et~al.}}{{}}}
+\bibcite{tensorflowlite}{{7}{2026}{{{Google}}}{{}}}
+\@writefile{toc}{\contentsline {subparagraph}{Acknowledgments}{13}{section*.20}\protected@file@percent }
+\gdef \@abspage@last{13}
