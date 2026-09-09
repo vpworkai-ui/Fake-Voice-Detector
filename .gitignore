@@ -44,3 +44,10 @@ __pycache__/
 docs/node_modules/
 docs/render_*/
 docs/reports/render_*/
+
+# Scratch / debug workspace
+/tmp/
+
+# Build artifacts
+*.apk
+*.aab
